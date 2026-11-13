@@ -20,9 +20,11 @@ Sistema para controlar os gastos da família: entradas e saídas do caixa, conta
 2. Em **SQL Editor > New query**, cole todo o arquivo `supabase/schema.sql` e clique em **Run**. Ele cria a tabela, as regras de segurança (cada um só vê os próprios dados) e o histórico.
 3. Em **Authentication > URL Configuration**, coloque em **Site URL** o endereço do site: `https://devthiagoferreira96-hue.github.io/ControleFinanceiro/` (e o mesmo em *Redirect URLs*). É para onde os links de e-mail (confirmar conta, trocar senha) levam.
 4. Opcional: em **Authentication > Sign In / Providers > Email**, desligue *Confirm email* para entrar sem precisar confirmar o e-mail.
-5. Em **Project Settings > API**, copie a **Project URL** e a chave **anon / publishable** e cole em `src/nuvem.config.js`. (Ou cadastre no GitHub em *Settings > Secrets and variables > Actions > Variables* com os nomes `SUPABASE_URL` e `SUPABASE_ANON_KEY`.)
+5. Em **Project Settings > API**, pegue a **Project URL** e a chave **anon / publishable**. Elas **não ficam no código**:
+   - **No computador:** copie `.env.example` para `.env.local` e preencha (o `.env.local` não vai para o GitHub).
+   - **No site publicado:** no GitHub, em *Settings > Secrets and variables > Actions > New repository secret*, crie `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
 
-Essas duas informações são públicas por natureza (vão dentro do site). Quem protege os dados é o login e as regras do banco. **Nunca** coloque a chave `service_role`/`secret` no projeto.
+A chave publishable/anon é feita para ir dentro do site (quem abrir o site consegue vê-la no navegador); ela sozinha não dá acesso a nenhum dado. Quem protege os dados é o login, as regras do banco (cada um só vê os seus) e a cifra com a senha do sistema. **Nunca** use a chave `service_role`/`secret` no projeto.
 
 ## 2. Rodar no seu computador
 
@@ -116,7 +118,7 @@ Roda os testes das regras de negócio (em qual fatura cai cada compra, divisão 
 index.html                 página única (o JavaScript monta as telas)
 public/                    ícones, manifest (instalar no celular) e sw.js (abrir sem internet)
 src/
-  nuvem.config.js          endereço e chave pública do Supabase
+  nuvem.config.js          explica de onde vêm as chaves do Supabase (.env.local / Secrets do GitHub)
   main.js                  início: conta da nuvem, primeiro acesso ou tela de senha, bloqueio automático
   router.js                troca de tela pelo endereço (#inicio, #extrato…)
   style.css                Tailwind + componentes (botões, campos, cartões)

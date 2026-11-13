@@ -174,8 +174,9 @@ export function telaSemConfiguracao() {
     <div class="w-full max-w-md animate-entrar">
       ${marca('Falta ligar o sistema à nuvem.')}
       <div class="card grid gap-3 text-stone-700 dark:text-stone-300">
-        <p>Abra o arquivo <code class="font-mono">src/nuvem.config.js</code> e cole a <strong>Project URL</strong> e a chave <strong>anon/publishable</strong> do seu projeto no Supabase (em Project Settings &gt; API).</p>
-        <p>Depois publique de novo (envie para o GitHub) e recarregue esta página.</p>
+        <p>Faltam as chaves do Supabase (Project URL e chave publishable/anon).</p>
+        <p><strong>No computador:</strong> copie o arquivo <code class="font-mono">.env.example</code> para <code class="font-mono">.env.local</code>, preencha e rode <code class="font-mono">npm run dev</code> de novo.</p>
+        <p><strong>No site publicado:</strong> no GitHub, em Settings &gt; Secrets and variables &gt; Actions, crie os secrets <code class="font-mono">VITE_SUPABASE_URL</code> e <code class="font-mono">VITE_SUPABASE_ANON_KEY</code> e publique de novo.</p>
       </div>
     </div>
   </main>`;
