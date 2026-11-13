@@ -7,11 +7,10 @@
 // Ou seja: o Supabase guarda os dados, mas não consegue lê-los.
 // Conversa com o Supabase direto pela internet (fetch), sem bibliotecas.
 // =====================================================================
-import { SUPABASE_URL, SUPABASE_CHAVE } from '../nuvem.config.js';
-
+// As chaves vêm de variáveis de ambiente (.env.local no computador, Secrets no GitHub), nunca do código.
 const env = import.meta.env || {};
-const URL_BASE = String(env.VITE_SUPABASE_URL || SUPABASE_URL || '').trim().replace(/\/+$/, '');
-const CHAVE = String(env.VITE_SUPABASE_ANON_KEY || SUPABASE_CHAVE || '').trim();
+const URL_BASE = String(env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+const CHAVE = String(env.VITE_SUPABASE_ANON_KEY || '').trim();
 const GUARDA = 'caixa-nuvem-sessao';
 
 export const configurada = () => /^https:\/\/\S+$/.test(URL_BASE) && CHAVE.length > 20;

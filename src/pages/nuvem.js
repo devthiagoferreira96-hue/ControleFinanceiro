@@ -166,7 +166,7 @@ export function telaNovaSenhaNuvem(aoTerminar) {
   });
 }
 
-// ---------- Ainda falta colar os dados do Supabase em src/nuvem.config.js
+// ---------- Ainda faltam as chaves do Supabase (.env.local ou Secrets do GitHub)
 export function telaSemConfiguracao() {
   document.title = 'Configuração · Caixa da Família';
   app().innerHTML = `

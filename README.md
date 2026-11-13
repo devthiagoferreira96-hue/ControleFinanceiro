@@ -118,7 +118,6 @@ Roda os testes das regras de negócio (em qual fatura cai cada compra, divisão 
 index.html                 página única (o JavaScript monta as telas)
 public/                    ícones, manifest (instalar no celular) e sw.js (abrir sem internet)
 src/
-  nuvem.config.js          explica de onde vêm as chaves do Supabase (.env.local / Secrets do GitHub)
   main.js                  início: conta da nuvem, primeiro acesso ou tela de senha, bloqueio automático
   router.js                troca de tela pelo endereço (#inicio, #extrato…)
   style.css                Tailwind + componentes (botões, campos, cartões)
