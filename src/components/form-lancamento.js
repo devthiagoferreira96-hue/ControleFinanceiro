@@ -42,7 +42,7 @@ export const campoCategoria = (selecionada, tipo = 'saida') => `
   <div data-campo>
     <label class="rotulo" for="f-categoria">Categoria</label>
     <select id="f-categoria" name="categoria_id" class="campo" aria-describedby="dica-categoria">${opcoesCategoria(selecionada, tipo)}</select>
-    <p id="dica-categoria" class="dica" data-dica-categoria>${DICA_CATEGORIA[tipo]}</p>
+    <p id="dica-categoria" class="dica" data-dica-categoria>${store.categorias.length ? DICA_CATEGORIA[tipo] : 'Nenhuma categoria cadastrada ainda. Cadastre as suas em <a class="font-semibold underline" href="#ajustes">Ajustes &gt; Categorias</a>.'}</p>
   </div>`;
 
 /**

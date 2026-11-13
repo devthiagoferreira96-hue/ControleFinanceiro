@@ -1,6 +1,8 @@
 // Guarda dados no aparelho usando o IndexedDB do navegador (aguenta muito mais que o localStorage
-// e continua lá depois de fechar o navegador).
-const NOME = 'caixa-familia';
+// e continua lá depois de fechar o navegador). É a cópia local: deixa o sistema abrir e
+// funcionar sem internet; a cópia principal fica na nuvem (veja local-db.js e nuvem.js).
+// Nome próprio para não misturar com a versão antiga (só no aparelho) publicada no mesmo site.
+const NOME = 'controle-financeiro-nuvem';
 let conexao;
 
 function abrir() {

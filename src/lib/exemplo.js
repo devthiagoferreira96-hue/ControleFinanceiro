@@ -1,6 +1,7 @@
 // =====================================================================
-// Dados iniciais: contas, cartões e categorias da planilha.
-// Opcionalmente, também lançamentos de exemplo para conhecer o sistema.
+// Dados iniciais: o sistema começa só com as contas, SEM categorias e SEM cartões,
+// para cada usuário cadastrar os seus em Ajustes.
+// Com "dados de exemplo", cria também cartões, categorias e lançamentos para conhecer o sistema.
 // =====================================================================
 import { faturaDe, dividirParcelas } from './faturas.js';
 import { somarDias, toISO, hoje } from './format.js';
@@ -26,6 +27,8 @@ export function dadosIniciais({ comExemplo = false } = {}) {
     ['Espécie', 'MMP', 'Nubank', 'TMP', 'M.C.'].map((nome, i) => [nome, saldos[i]])
       .map(([nome, saldo_inicial]) => [nome, inserir('contas', { nome, saldo_inicial }).id]),
   );
+  if (!comExemplo) return banco.tabelas; // começa limpo: categorias e cartões são cadastrados pelo usuário
+
   const cartoes = [
     inserir('cartoes', { nome: 'Mercado Pago', dia_fechamento: 3, dia_vencimento: 10 }),
     inserir('cartoes', { nome: 'Nubank', dia_fechamento: 1, dia_vencimento: 8 }),
@@ -46,7 +49,7 @@ export function dadosIniciais({ comExemplo = false } = {}) {
     ['Assinatura Canais', 'Serviços', false], ['Segurança', 'Serviços', false], ['Telefone', 'Serviços', false],
   ].forEach(([nome, grupo, no_grafico]) => (cat[nome] = inserir('categorias', { nome, grupo, no_grafico, tipo: TIPO_PADRAO[nome] || 'saida' }).id));
 
-  if (comExemplo) exemplos(inserir, { contas, cartoes, cat });
+  exemplos(inserir, { contas, cartoes, cat });
   return banco.tabelas;
 }
 

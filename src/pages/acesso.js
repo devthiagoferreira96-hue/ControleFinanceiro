@@ -57,7 +57,7 @@ export function telaPrimeiroAcesso(aoEntrar, restaurando = null) {
           <span class="block text-sm text-stone-600 dark:text-stone-400">Para conhecer o sistema. Depois dá para apagar tudo em Ajustes.</span></span>
         </label>`}
         <div class="rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-900/40 dark:text-amber-100" role="note">
-          <strong>Guarde bem a senha.</strong> Ela protege os dados deste aparelho. Na próxima tela você recebe um <strong>código de recuperação</strong>: com ele dá para criar uma senha nova se esquecer.
+          <strong>Guarde bem a senha.</strong> Ela cifra os seus dados (inclusive na nuvem) e vale em todos os aparelhos. Na próxima tela você recebe um <strong>código de recuperação</strong>: com ele dá para criar uma senha nova se esquecer.
         </div>
         <button type="submit" class="btn-primario">${restaurando ? 'Criar e restaurar' : 'Criar e entrar'}</button>
       </form>
@@ -88,7 +88,15 @@ export function telaPrimeiroAcesso(aoEntrar, restaurando = null) {
     botao.disabled = true;
     botao.textContent = 'Preparando…';
     const tabelas = restaurando ? restaurando.tabelas : dadosIniciais({ comExemplo: form.exemplo?.checked });
-    const codigo = await local.criarConta(usuario, senha, tabelas);
+    let codigo;
+    try {
+      codigo = await local.criarConta(usuario, senha, tabelas);
+    } catch (err) {
+      toast(err.message, { tipo: 'erro' });
+      botao.disabled = false;
+      botao.textContent = restaurando ? 'Criar e restaurar' : 'Criar e entrar';
+      return;
+    }
     await mostrarCodigoRecuperacao(codigo, { motivo: 'criado' });
     if (restaurando) toast('Backup restaurado');
     await aoEntrar();
@@ -194,7 +202,7 @@ function semCodigo(aoEntrar) {
     largura: 'max-w-md',
     corpo: `
       <div class="grid gap-3 text-stone-700 dark:text-stone-300">
-        <p>Para proteger seus dados, eles ficam <strong>trancados</strong>. Sem a senha e sem o código de recuperação, não é possível abrir os dados guardados neste aparelho.</p>
+        <p>Para proteger seus dados, eles ficam <strong>trancados</strong>. Sem a senha e sem o código de recuperação, não é possível abrir os dados (nem na nuvem).</p>
         <p>Se você tiver um <strong>arquivo de backup</strong>, pode apagar este acesso, criar um novo e restaurar os dados dele.</p>
       </div>
       <div class="mt-5 grid gap-2">
@@ -206,11 +214,11 @@ function semCodigo(aoEntrar) {
   d.querySelector('[data-zerar]').onclick = () => {
     d.close();
     const c = dialogo({
-      titulo: 'Apagar tudo deste aparelho?',
+      titulo: 'Apagar tudo?',
       largura: 'max-w-sm',
       corpo: `
         <form class="grid gap-3" novalidate>
-          <p class="text-stone-700 dark:text-stone-300">Os dados que estão neste aparelho serão <strong>apagados para sempre</strong>. Depois você cria um acesso novo e pode restaurar um backup.</p>
+          <p class="text-stone-700 dark:text-stone-300">Os dados serão <strong>apagados da nuvem e dos aparelhos</strong>. Depois você cria um acesso novo e pode restaurar um backup.</p>
           <div data-campo><label class="rotulo" for="confirmar-apagar">Para confirmar, digite APAGAR</label>
           <input id="confirmar-apagar" name="texto" class="campo uppercase" autocomplete="off"></div>
           <button type="submit" class="btn-perigo">Apagar e começar do zero</button>
@@ -221,7 +229,11 @@ function semCodigo(aoEntrar) {
     f.onsubmit = semRepetir(async (e) => {
       e.preventDefault();
       if (f.texto.value.trim().toUpperCase() !== 'APAGAR') return erroNoCampo(f, 'texto', 'Digite APAGAR para confirmar.');
-      await local.apagarTudo();
+      try {
+        await local.apagarTudo();
+      } catch (err) {
+        return erroNoCampo(f, 'texto', err.message);
+      }
       c.close();
       telaPrimeiroAcesso(aoEntrar);
     });

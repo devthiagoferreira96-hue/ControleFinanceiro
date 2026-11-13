@@ -164,7 +164,7 @@ function lembreteBackup() {
   if (!temDados || (dias !== null && dias < 30)) return '';
   return `<section class="card border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/30" aria-labelledby="t-backup">
     <h2 id="t-backup" class="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-100">${icone('alerta')} ${dias === null ? 'Faça seu primeiro backup' : `Último backup há ${dias} dias`}</h2>
-    <p class="mt-1 text-sm text-amber-900 dark:text-amber-100">Os dados ficam só neste aparelho. Se ele for perdido ou formatado, só o backup traz tudo de volta.</p>
+    <p class="mt-1 text-sm text-amber-900 dark:text-amber-100">Os dados já ficam salvos na nuvem. Um arquivo de backup é uma cópia extra, guardada onde você quiser.</p>
     <button type="button" class="btn-primario mt-3" data-backup>${icone('baixar')} Fazer backup agora</button>
   </section>`;
 }

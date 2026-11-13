@@ -31,14 +31,14 @@ const TOPICOS = [
     <p>O <a href="#relatorio" class="font-semibold underline">Relatório</a> mostra todas as categorias, separadas por grupo, os últimos 6 meses e os pagamentos por pessoa.</p>`],
   ['cadeado', 'Senha e bloqueio', `
     <p>Sempre que o sistema é aberto, ele pede a sua senha. Se o app ficar mais de 1 minuto em segundo plano, a senha é pedida de novo. Para bloquear na hora, toque no <strong>cadeado</strong>.</p>
-    <p>A senha também protege os dados guardados no aparelho: sem ela, ninguém consegue lê-los. Para trocar, vá em <a href="#ajustes" class="font-semibold underline">Ajustes > Usuário e senha</a>.</p>`],
+    <p>A senha também protege os dados guardados na nuvem e no aparelho: eles são cifrados com ela, e sem ela ninguém consegue lê-los. Para trocar, vá em <a href="#ajustes" class="font-semibold underline">Ajustes > Usuário e senha</a>.</p>`],
   ['repetir', 'Esqueci a senha: código de recuperação', `
     <p>Ao criar o acesso, o sistema mostra um <strong>código de recuperação</strong> (16 letras e números). Mande para o seu WhatsApp ou anote num papel.</p>
     <p>Se esquecer a senha, na tela de senha toque em <strong>Esqueci minha senha</strong>, digite o código e crie uma senha nova. <strong>Nenhum dado se perde.</strong> Depois disso o sistema mostra um código novo para guardar (o usado deixa de valer).</p>
     <p>Perdeu o código? Em <a href="#ajustes" class="font-semibold underline">Ajustes > Usuário e senha</a>, toque em <strong>Novo código de recuperação</strong> (precisa da senha).</p>
     <p>Sem a senha e sem o código, não há como abrir os dados: só um backup os traz de volta.</p>`],
   ['baixar', 'Backup: não perca seus dados', `
-    <p>O sistema funciona 100% sem internet e guarda tudo <strong>só neste aparelho</strong>. Se o celular for perdido, trocado ou formatado, os dados vão junto, a não ser que você tenha um backup.</p>
+    <p>O sistema guarda tudo <strong>na nuvem</strong> (cifrado) e também no aparelho. Se o celular for perdido, trocado ou formatado, é só entrar com a sua conta da nuvem em outro aparelho. O backup é uma cópia extra.</p>
     <p>Em <a href="#ajustes" class="font-semibold underline">Ajustes > Backup e exportar</a>, toque em <strong>Backup, Excel ou PDF</strong>, escolha <strong>Backup completo</strong> e toque em <strong>Gerar backup</strong>. No celular, escolha onde guardar (Drive, e-mail ou WhatsApp). O Início lembra você quando passar de 30 dias sem backup.</p>
     <p>Para trazer os dados de volta (no mesmo ou em outro aparelho), use <strong>Restaurar um backup</strong>.</p>`],
   ['planilha', 'Planilha do Excel e relatório em PDF', `

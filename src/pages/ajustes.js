@@ -3,6 +3,7 @@ import { esc, valorParaCampo, lerValor, VALOR_MAXIMO, valorMaximoTexto, dataComp
 import { store, categoriasPorGrupo, TIPOS_CATEGORIA } from '../lib/store.js';
 import { salvarItem, excluirItem } from '../lib/api.js';
 import { local } from '../lib/local-db.js';
+import { usuarioNuvem } from '../lib/nuvem.js';
 import { desfazendo } from '../components/lancamento.js';
 import { abrirOpcoesBackup, restaurarComConfirmacao } from '../components/backup.js';
 import { importarDoExcel } from '../components/importar.js';
@@ -71,13 +72,13 @@ export default {
     <p><strong>Backup e exportar</strong>: escolha entre o <strong>backup completo</strong> (guarda tudo e é o único que restaura os dados), uma <strong>planilha do Excel</strong> ou um <strong>relatório em PDF</strong> do mês, do ano ou de tudo.</p>
     <p><strong>Contas, Cartões, Categorias e Pessoas</strong>: mude qualquer campo e toque em <strong>Salvar</strong> na mesma linha. Para incluir um item novo, use a última linha de cada lista.</p>
     <p><strong>Aparência</strong>: modo claro ou escuro, temas de cores prontos, suas próprias cores e letras maiores.</p>
-    <p><strong>Usuário e senha</strong>: troque seu nome ou sua senha, gere um novo código de recuperação ou apague tudo deste aparelho.</p>`,
+    <p><strong>Usuário e senha</strong>: troque seu nome ou sua senha, gere um novo código de recuperação, saia da conta da nuvem neste aparelho ou apague tudo.</p>`,
 
   async render(el, ctx) {
     el.innerHTML = `
     <div class="mx-auto grid max-w-3xl gap-3 animate-entrar">
       ${secao('backup', 'Backup, importar e exportar', 'baixar', `
-        <p class="text-sm text-stone-700 dark:text-stone-300">Seus dados ficam <strong>só neste aparelho</strong>. Faça um backup de vez em quando e guarde o arquivo fora dele (Drive, e-mail ou WhatsApp). Aqui também dá para gerar uma <strong>planilha do Excel</strong> ou um <strong>relatório em PDF</strong>.</p>
+        <p class="text-sm text-stone-700 dark:text-stone-300">Seus dados ficam <strong>salvos na nuvem</strong> (cifrados) e também neste aparelho, para abrir sem internet. Se quiser uma cópia extra, faça um backup e guarde o arquivo (Drive, e-mail ou WhatsApp). Aqui também dá para gerar uma <strong>planilha do Excel</strong> ou um <strong>relatório em PDF</strong>.</p>
         <p class="mt-2 text-sm ${!local.ultimoBackup ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-stone-600 dark:text-stone-400'}">${local.ultimoBackup ? `Último backup: ${dataCompleta(local.ultimoBackup.slice(0, 10))}` : 'Você ainda não fez nenhum backup.'}</p>
         <div class="mt-4 flex flex-col gap-2 sm:flex-row">
           <button type="button" class="btn-primario" data-backup>${icone('baixar')} Backup, Excel ou PDF</button>
@@ -109,9 +110,14 @@ export default {
           <button type="button" class="btn-neutro" data-novo-codigo>${icone('repetir')} Novo código de recuperação</button>
           <button type="button" class="btn-neutro" data-tour>${icone('ajuda')} Ver a apresentação de novo</button>
         </div>
+        <div class="mt-6 rounded-xl border border-stone-200 p-4 dark:border-stone-700">
+          <p class="font-semibold">Conta na nuvem</p>
+          <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Conectado como <strong>${esc(usuarioNuvem()?.email || '')}</strong>. Os dados são salvos na nuvem a cada mudança. Sair tira os dados só deste aparelho; eles continuam na nuvem.</p>
+          <button type="button" class="btn-neutro mt-3" data-sair-nuvem>${icone('enviar')} Sair da nuvem neste aparelho</button>
+        </div>
         <div class="mt-6 rounded-xl border border-red-200 p-4 dark:border-red-900">
-          <p class="font-semibold text-red-800 dark:text-red-300">Apagar tudo deste aparelho</p>
-          <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Apaga o usuário e todos os dados. Use para começar do zero (por exemplo, depois de testar com os dados de exemplo).</p>
+          <p class="font-semibold text-red-800 dark:text-red-300">Apagar tudo (na nuvem e nos aparelhos)</p>
+          <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Apaga o usuário e todos os dados da nuvem e de todos os aparelhos. Use para começar do zero (por exemplo, depois de testar com os dados de exemplo).</p>
           <button type="button" class="btn-neutro mt-3 text-red-700 dark:text-red-400" data-apagar-tudo>${icone('lixo')} Apagar tudo</button>
         </div>`)}
     </div>`;
@@ -180,6 +186,13 @@ export default {
         novoCodigo();
       } else if (e.target.closest('[data-apagar-tudo]')) {
         apagarTudo();
+      } else if (e.target.closest('[data-sair-nuvem]')) {
+        if (!(await confirmar('Este aparelho deixa de mostrar os dados até você entrar de novo. Nada é apagado da nuvem.', { titulo: 'Sair da nuvem neste aparelho?', botao: 'Sair' }))) return;
+        try {
+          await local.sairDaNuvem();
+          location.hash = '';
+          location.reload();
+        } catch (err) { toast(err.message, { tipo: 'erro' }); }
       }
     };
 
@@ -333,10 +346,10 @@ function novoCodigo() {
 
 function apagarTudo() {
   const d = dialogo({
-    titulo: 'Apagar tudo deste aparelho?',
+    titulo: 'Apagar tudo?',
     largura: 'max-w-sm',
     corpo: `<form class="grid gap-3" novalidate>
-      <p class="text-stone-700 dark:text-stone-300">O usuário e <strong>todos os dados</strong> serão apagados para sempre. Se quiser guardar alguma coisa, faça um backup antes.</p>
+      <p class="text-stone-700 dark:text-stone-300">O usuário e <strong>todos os dados</strong> serão apagados da nuvem e de todos os aparelhos. Se quiser guardar alguma coisa, faça um backup antes.</p>
       <div data-campo><label class="rotulo" for="confirmar-apagar">Para confirmar, digite APAGAR</label>
       <input id="confirmar-apagar" name="texto" class="campo uppercase" autocomplete="off"></div>
       <button type="submit" class="btn-perigo">Apagar tudo</button></form>`,
@@ -346,7 +359,11 @@ function apagarTudo() {
   f.onsubmit = semRepetir(async (e) => {
     e.preventDefault();
     if (f.texto.value.trim().toUpperCase() !== 'APAGAR') return erroNoCampo(f, 'texto', 'Digite APAGAR para confirmar.');
-    await local.apagarTudo();
+    try {
+      await local.apagarTudo();
+    } catch (err) {
+      return erroNoCampo(f, 'texto', err.message);
+    }
     location.hash = '';
     location.reload();
   });

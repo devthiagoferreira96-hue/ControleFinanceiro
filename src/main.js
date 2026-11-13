@@ -1,4 +1,5 @@
-// Ponto de partida: primeiro acesso (criar usuário) ou tela de senha, depois abre o sistema
+// Ponto de partida: conta da nuvem (uma vez por aparelho), depois primeiro acesso (criar usuário)
+// ou tela de senha, e então abre o sistema
 import './style.css';
 import { store } from './lib/store.js';
 import { carregarCadastros } from './lib/api.js';
@@ -7,6 +8,8 @@ import { aplicarPreferencias } from './lib/preferencias.js';
 import { telaPrimeiroAcesso, telaSenha } from './pages/acesso.js';
 import { iniciarApp, redesenharSeSeguro } from './router.js';
 import { toast } from './lib/ui.js';
+import * as nuvem from './lib/nuvem.js';
+import { telaNuvem, telaNovaSenhaNuvem, telaSemConfiguracao, telaCarregando } from './pages/nuvem.js';
 
 aplicarPreferencias();
 
@@ -16,6 +19,19 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 }
 
 async function iniciar() {
+  if (!nuvem.configurada()) return telaSemConfiguracao();
+  // voltou pelo link do e-mail (confirmar a conta ou trocar a senha da nuvem)
+  const retorno = await nuvem.lerRetornoDoEmail().catch((e) => ({ erro: e.message }));
+  if (retorno?.tipo === 'recovery') return telaNovaSenhaNuvem(depoisDaNuvem);
+  if (!nuvem.logado()) return telaNuvem(depoisDaNuvem, { aviso: retorno?.erro || '' });
+  if (retorno?.tipo) toast('E-mail confirmado. Conta da nuvem pronta.');
+  return depoisDaNuvem();
+}
+
+/** Já conectado à nuvem: traz os dados e segue o fluxo de sempre (senha do Caixa) */
+async function depoisDaNuvem() {
+  telaCarregando();
+  await local.conectarNuvem();
   const usuario = await local.usuarioCadastrado();
   if (usuario) telaSenha(usuario, abrirSistema);
   else telaPrimeiroAcesso(abrirSistema);
@@ -57,6 +73,30 @@ document.addEventListener('visibilitychange', () => {
 // Se o aparelho não deixar gravar (sem espaço, modo privado...), avisa em vez de perder em silêncio
 window.addEventListener('caixa:erro-gravar', () => {
   toast('Não foi possível salvar neste aparelho. Verifique se há espaço livre e faça um backup agora.', { tipo: 'erro' });
+});
+
+// Sessão da nuvem terminou (senha trocada em outro lugar, por exemplo): pede para entrar de novo
+window.addEventListener('caixa:nuvem-saiu', () => {
+  toast('Sua sessão na nuvem terminou. Entre de novo para continuar salvando na nuvem.', { tipo: 'erro' });
+});
+// Os dados foram apagados (ou o acesso recriado) em outro aparelho
+window.addEventListener('caixa:apagado-na-nuvem', () => {
+  location.hash = '';
+  location.reload();
+});
+// Sem internet com mudanças guardadas só aqui / internet de volta
+let avisouSemInternet = false;
+window.addEventListener('caixa:nuvem-estado', async (e) => {
+  if (!store.usuario) return;
+  if (e.detail.offline) {
+    if (!avisouSemInternet && (await local.temPendencias())) {
+      avisouSemInternet = true;
+      toast('Sem internet: as mudanças ficam guardadas neste aparelho e vão para a nuvem quando a conexão voltar.');
+    }
+  } else if (avisouSemInternet) {
+    avisouSemInternet = false;
+    toast('Conexão de volta: dados salvos na nuvem.');
+  }
 });
 
 iniciar();

@@ -1,13 +1,19 @@
 // =====================================================================
-// DADOS NO APARELHO
-// Tudo fica guardado no próprio celular/computador (IndexedDB), cifrado.
-// Não existe servidor: o sistema funciona 100% offline.
+// DADOS: NA NUVEM E NO APARELHO
+// Tudo é cifrado aqui no aparelho com a senha do sistema e guardado em dois lugares:
+//   - no próprio aparelho (IndexedDB), para abrir rápido e funcionar sem internet;
+//   - na nuvem (Supabase), para não perder nada e usar no celular e no computador.
 //
-// No aparelho ficam duas coisas:
+// São duas "caixas":
 //   "conta" -> nome do usuário e as duas "fechaduras" da chave dos dados
 //              (uma abre com a senha, a outra com o código de recuperação)
 //   "dados" -> todas as tabelas, cifradas com a chave dos dados
-// Veja cofre.js para entender a criptografia.
+// Veja cofre.js para entender a criptografia. A nuvem só recebe as caixas já cifradas.
+//
+// Sincronização: cada gravação vai primeiro para o aparelho e logo depois para a nuvem.
+// Cada caixa tem um número de versão na nuvem. Se outro aparelho gravou antes,
+// as duas versões são juntadas linha por linha (nada se perde) e gravadas de novo.
+// Sem internet, as mudanças ficam no aparelho e sobem quando a conexão voltar.
 // =====================================================================
 import { criarConsultas, tabelasVazias, TABELAS } from './consulta-local.js';
 import {
@@ -15,41 +21,55 @@ import {
   gerarCodigoRecuperacao, normalizarCodigo,
 } from './cofre.js';
 import * as armazenamento from './armazenamento.js';
+import * as nuvem from './nuvem.js';
+import { mesclarTabelas } from './mesclar.js';
 
-const banco = { tabelas: tabelasVazias(), aoMudar: () => agendarGravacao() };
+let mudancas = 0; // conta cada mudança feita na memória (para saber se algo mudou durante um envio)
+const banco = { tabelas: tabelasVazias(), aoMudar: () => { mudancas++; agendarGravacao(); } };
 let chave = null;        // chave dos dados pronta para uso (só na memória, enquanto desbloqueado)
 let bytesDaChave = null; // os mesmos bytes, para criar fechaduras novas (troca de senha/código)
 let timer = null;
-let gravando = Promise.resolve();
+let fila = Promise.resolve(); // gravações e sincronizações acontecem uma de cada vez, na ordem
 
 const VERIFICADOR_V1 = 'caixa-ok'; // usado só para abrir dados da versão anterior
 
-// Várias abas/janelas abertas (ou o app instalado + o navegador): cada uma guarda os dados na
-// memória e grava tudo de uma vez. Sem combinar, a última a gravar apagaria o que a outra fez.
-// Por isso, quem grava avisa as outras, e elas recarregam os dados antes de continuar.
+/** Coloca uma tarefa na fila (nunca duas ao mesmo tempo) */
+function naFila(tarefa) {
+  const p = fila.then(tarefa);
+  fila = p.catch(() => {});
+  return p;
+}
+
+// Várias abas/janelas abertas (ou o app instalado + o navegador): quem grava avisa as outras,
+// e elas recarregam os dados antes de continuar.
 const ESTA_ABA = crypto.randomUUID();
-const canal = typeof BroadcastChannel === 'function' ? new BroadcastChannel('caixa-familia') : null;
+const canal = typeof BroadcastChannel === 'function' ? new BroadcastChannel('controle-financeiro-nuvem') : null;
 if (canal) {
   canal.onmessage = (e) => {
     if (e.data?.de === ESTA_ABA) return;
-    if (e.data?.tipo === 'mudou') recarregar();
+    if (e.data?.tipo === 'mudou') recarregarDoAparelho();
     if (e.data?.tipo === 'apagado') location.reload();
   };
 }
+const avisarOutrasAbas = (tipo) => canal?.postMessage({ tipo, de: ESTA_ABA });
+const avisarTelas = () => window.dispatchEvent(new Event('caixa:dados-externos'));
 
-/** Lê de novo os dados gravados (quando outra aba mudou alguma coisa) */
-async function recarregar() {
+/** Lê de novo os dados gravados no aparelho (quando outra aba mudou alguma coisa) */
+async function recarregarDoAparelho() {
   if (!chave) return;
-  await gravando;
-  if (timer) await gravarAgora(); // algo desta aba ainda não gravado vai primeiro
-  try {
+  if (timer) gravarAgora(); // algo desta aba ainda não gravado vai primeiro
+  return naFila(async () => {
     const salvo = await armazenamento.ler('dados');
     if (marcaDe(salvo) === marcaAtual) return; // nada mudou
     await carregarDados();
-    window.dispatchEvent(new Event('caixa:dados-externos'));
-  } catch (e) {
-    console.error('Não foi possível recarregar os dados', e);
-  }
+    avisarTelas();
+  }).catch((e) => console.error('Não foi possível recarregar os dados', e));
+}
+
+/** Ao voltar para o app: confere o aparelho (outras abas) e a nuvem (outros aparelhos) */
+async function recarregar() {
+  await recarregarDoAparelho();
+  return sincronizar();
 }
 
 function agendarGravacao() {
@@ -57,24 +77,24 @@ function agendarGravacao() {
   timer = setTimeout(gravarAgora, 150);
 }
 
-/** Cifra e grava tudo no aparelho (as gravações acontecem uma de cada vez, na ordem) */
+/** Cifra e grava tudo no aparelho e marca para subir para a nuvem */
 function gravarAgora() {
   clearTimeout(timer);
   timer = null;
-  if (!chave) return gravando;
-  const instantaneo = { tabelas: banco.tabelas, ultimoBackup: local.ultimoBackup };
-  gravando = gravando
-    .then(async () => {
-      const cifrado = await cifrar(chave, instantaneo);
-      await armazenamento.gravar('dados', cifrado);
-      marcaAtual = marcaDe(cifrado);
-      canal?.postMessage({ tipo: 'mudou', de: ESTA_ABA });
-    })
-    .catch((e) => {
-      console.error('Não foi possível salvar no aparelho', e);
-      window.dispatchEvent(new CustomEvent('caixa:erro-gravar', { detail: e }));
-    });
-  return gravando;
+  if (!chave) return fila;
+  const instantaneo = { tabelas: structuredClone(banco.tabelas), ultimoBackup: local.ultimoBackup };
+  const p = naFila(async () => {
+    const cifrado = await cifrar(chave, instantaneo);
+    await armazenamento.gravar('dados', cifrado);
+    marcaAtual = marcaDe(cifrado);
+    await marcarPendente('dados');
+    avisarOutrasAbas('mudou');
+  }).catch((e) => {
+    console.error('Não foi possível salvar no aparelho', e);
+    window.dispatchEvent(new CustomEvent('caixa:erro-gravar', { detail: e }));
+  });
+  agendarEnvio();
+  return p;
 }
 
 /** Fechadura nova: { sal, chave } a partir de um segredo (senha ou código) */
@@ -104,37 +124,88 @@ async function carregarDados() {
   local.ultimoBackup = dados.ultimoBackup || null;
 }
 
+/** Grava a conta no aparelho e marca para subir para a nuvem */
+async function gravarConta(conta) {
+  await naFila(async () => {
+    await armazenamento.gravar('conta', conta);
+    await marcarPendente('conta');
+  });
+  agendarEnvio();
+}
+
 export const local = {
   usuario: null,
   ultimoBackup: null,
   from: criarConsultas(banco),
   tabelas: () => banco.tabelas,
 
-  /** Já existe um usuário criado neste aparelho? Retorna o nome ou null */
+  /** Já existe um usuário criado (neste aparelho ou trazido da nuvem)? Retorna o nome ou null */
   async usuarioCadastrado() {
     const conta = await armazenamento.ler('conta').catch(() => null);
     return conta?.usuario || null;
   },
 
+  /**
+   * Liga este aparelho à conta da nuvem e traz o que já existe lá.
+   * Espera no máximo alguns segundos; sem internet, segue com o que está no aparelho.
+   */
+  async conectarNuvem({ esperarMs = 8000 } = {}) {
+    const dono = nuvem.usuarioNuvem()?.id;
+    await naFila(async () => {
+      const m = await lerSync();
+      if (m.dono && m.dono !== dono) {
+        // outra conta da nuvem usou este aparelho antes: a cópia local dela não serve
+        await Promise.all(['conta', 'dados', 'base'].map((k) => armazenamento.apagar(k)));
+        Object.assign(m, syncVazio());
+      }
+      m.dono = dono;
+      await armazenamento.gravar('sync', m);
+    });
+    const espera = new Promise((ok) => setTimeout(ok, esperarMs));
+    await Promise.race([sincronizar(), espera]);
+  },
+
   /** Primeiro acesso: cria o usuário e grava os dados iniciais. Retorna o código de recuperação. */
   async criarConta(usuario, senha, tabelasIniciais) {
+    // Só cria com internet e se ainda não houver acesso na nuvem: assim um aparelho
+    // nunca cria uma segunda "conta" por cima da que outro aparelho já criou.
+    let remotas;
+    try {
+      remotas = await nuvem.versoes();
+    } catch (e) {
+      throw new Error(e.offline ? 'Conecte-se à internet para criar o acesso pela primeira vez.' : e.message);
+    }
+    if (remotas.conta) {
+      await local.conectarNuvem();
+      throw new Error('Já existe um acesso criado em outro aparelho com esta conta da nuvem. Recarregue a página e entre com a sua senha.');
+    }
     bytesDaChave = novaChaveDosDados();
     chave = await usarChave(bytesDaChave);
     const codigo = gerarCodigoRecuperacao();
     this.usuario = usuario;
     this.ultimoBackup = null;
     banco.tabelas = { ...tabelasVazias(), ...tabelasIniciais };
-    await armazenamento.gravarJuntos({
-      conta: {
-        versao: 2,
-        usuario,
-        senha: await fechadura(senha),
-        recuperacao: await fechadura(normalizarCodigo(codigo)),
-        criada_em: new Date().toISOString(),
-      },
-      dados: await cifrar(chave, { tabelas: banco.tabelas, ultimoBackup: null }),
+    const dados = await cifrar(chave, { tabelas: banco.tabelas, ultimoBackup: null });
+    await naFila(async () => {
+      await armazenamento.gravarJuntos({
+        conta: {
+          versao: 2,
+          usuario,
+          senha: await fechadura(senha),
+          recuperacao: await fechadura(normalizarCodigo(codigo)),
+          criada_em: new Date().toISOString(),
+        },
+        dados,
+      });
+      await armazenamento.apagar('base');
+      const m = await lerSync();
+      m.versao = { conta: 0, dados: 0 };
+      m.pendente = { conta: true, dados: true };
+      await armazenamento.gravar('sync', m);
     });
+    marcaAtual = marcaDe(dados);
     pedirArmazenamentoPersistente();
+    await sincronizar();
     return codigo;
   },
 
@@ -165,7 +236,7 @@ export const local = {
     const novo = gerarCodigoRecuperacao();
     conta.senha = await fechadura(senhaNova);
     conta.recuperacao = await fechadura(normalizarCodigo(novo));
-    await armazenamento.gravar('conta', conta);
+    await gravarConta(conta);
     return novo;
   },
 
@@ -183,7 +254,7 @@ export const local = {
       conta.senha = await fechadura(senhaNova);
     }
     if (usuario) conta.usuario = usuario;
-    await armazenamento.gravar('conta', conta);
+    await gravarConta(conta);
     this.usuario = conta.usuario;
   },
 
@@ -193,13 +264,14 @@ export const local = {
     if (!(await abrirFechadura(conta.senha, senhaAtual))) throw new Error('A senha está incorreta.');
     const codigo = gerarCodigoRecuperacao();
     conta.recuperacao = await fechadura(normalizarCodigo(codigo));
-    await armazenamento.gravar('conta', conta);
+    await gravarConta(conta);
     return codigo;
   },
 
   /** Troca todos os dados (restaurar backup) */
   async substituir(tabelas) {
     banco.tabelas = { ...tabelasVazias(), ...tabelas };
+    mudancas++;
     await gravarAgora();
   },
 
@@ -208,24 +280,54 @@ export const local = {
     await gravarAgora();
   },
 
-  /** Esquece a chave da memória (os dados continuam cifrados no aparelho) */
+  /** Esquece a chave da memória (os dados continuam cifrados no aparelho e na nuvem) */
   bloquear() {
-    clearTimeout(timer);
+    if (timer) gravarAgora();
     chave = null;
     bytesDaChave = null;
     banco.tabelas = tabelasVazias();
   },
 
-  /** Apaga usuário e dados deste aparelho */
+  /** Apaga usuário e dados deste aparelho e da nuvem */
   async apagarTudo() {
+    try {
+      await nuvem.apagar('dados');
+      await nuvem.apagar('conta');
+    } catch (e) {
+      throw new Error(e.offline ? 'Conecte-se à internet para apagar os dados da nuvem.' : e.message);
+    }
     this.bloquear();
-    await armazenamento.apagar('dados');
-    await armazenamento.apagar('conta');
-    canal?.postMessage({ tipo: 'apagado', de: ESTA_ABA });
+    await naFila(async () => {
+      for (const k of ['dados', 'conta', 'base']) await armazenamento.apagar(k);
+      const m = await lerSync();
+      await armazenamento.gravar('sync', { ...syncVazio(), dono: m.dono });
+    });
+    avisarOutrasAbas('apagado');
+  },
+
+  /** Há mudanças feitas neste aparelho que ainda não chegaram na nuvem? */
+  async temPendencias() {
+    const m = await lerSync();
+    return Boolean(m.pendente.conta || m.pendente.dados);
+  },
+
+  /** Sai da conta da nuvem neste aparelho (só depois de tudo enviado) e limpa a cópia local */
+  async sairDaNuvem() {
+    if (timer) gravarAgora();
+    await sincronizar();
+    if (await this.temPendencias()) {
+      throw new Error('Ainda há mudanças que não foram para a nuvem. Conecte-se à internet e tente de novo.');
+    }
+    this.bloquear();
+    await naFila(async () => {
+      for (const k of ['dados', 'conta', 'base', 'sync']) await armazenamento.apagar(k);
+    });
+    await nuvem.sair();
+    avisarOutrasAbas('apagado');
   },
 
   recarregar,
-
+  sincronizar,
   gravarAgora,
   TABELAS,
 };
@@ -233,9 +335,10 @@ export const local = {
 async function entrarComChave(conta, bytes) {
   bytesDaChave = bytes;
   chave = await usarChave(bytes);
-  await carregarDados();
+  await naFila(carregarDados);
   local.usuario = conta.usuario;
   pedirArmazenamentoPersistente();
+  sincronizar(); // agora com a chave: dá para juntar mudanças de outros aparelhos
 }
 
 /**
@@ -264,16 +367,210 @@ async function migrarVersaoAnterior(conta, senha) {
   banco.tabelas = { ...tabelasVazias(), ...(dados.tabelas || {}) };
   local.ultimoBackup = dados.ultimoBackup || null;
   local.usuario = conta.usuario;
+  const cifrado = await cifrar(chave, { tabelas: banco.tabelas, ultimoBackup: local.ultimoBackup });
   // dados (cifrados com a chave nova) e conta nova gravados juntos: ou tudo, ou nada
-  await armazenamento.gravarJuntos({
-    dados: await cifrar(chave, { tabelas: banco.tabelas, ultimoBackup: local.ultimoBackup }),
-    conta: nova,
+  await naFila(async () => {
+    await armazenamento.gravarJuntos({ dados: cifrado, conta: nova });
+    await marcarPendente('conta');
+    await marcarPendente('dados');
   });
+  marcaAtual = marcaDe(cifrado);
   pedirArmazenamentoPersistente();
+  agendarEnvio();
   return { ok: true, codigoNovo: codigo };
 }
 
 // Pede ao navegador para não apagar os dados do site quando faltar espaço
 function pedirArmazenamentoPersistente() {
   navigator.storage?.persist?.().catch(() => {});
+}
+
+// =====================================================================
+// SINCRONIZAÇÃO COM A NUVEM
+// "sync" (no aparelho) = { dono, versao: {conta, dados}, pendente: {conta, dados} }
+// "base" (no aparelho) = a caixa "dados" como estava na última vez que aparelho e nuvem
+//                        concordaram; serve para saber o que cada lado mudou depois.
+// =====================================================================
+const syncVazio = () => ({ dono: null, versao: { conta: 0, dados: 0 }, pendente: { conta: false, dados: false } });
+async function lerSync() {
+  const m = await armazenamento.ler('sync').catch(() => null);
+  const v = syncVazio();
+  return m ? { ...v, ...m, versao: { ...v.versao, ...m.versao }, pendente: { ...v.pendente, ...m.pendente } } : v;
+}
+async function marcarPendente(qual) {
+  const m = await lerSync();
+  if (m.pendente[qual]) return;
+  m.pendente[qual] = true;
+  await armazenamento.gravar('sync', m);
+}
+
+let timerEnvio = null;
+function agendarEnvio() {
+  clearTimeout(timerEnvio);
+  timerEnvio = setTimeout(() => sincronizar(), 800);
+}
+
+// Estado mostrado ao usuário (só avisa quando muda de "sem internet" para "enviado")
+let semInternet = false;
+function estado(offline) {
+  if (offline === semInternet) return;
+  semInternet = offline;
+  window.dispatchEvent(new CustomEvent('caixa:nuvem-estado', { detail: { offline } }));
+}
+
+/** Leva e traz as mudanças entre o aparelho e a nuvem */
+function sincronizar() {
+  if (!nuvem.configurada() || !nuvem.logado()) return Promise.resolve();
+  return naFila(sincronizarAgora).catch((e) => {
+    if (e?.offline) return estado(true);
+    if (e?.semSessao) return;
+    console.error('Não foi possível sincronizar com a nuvem', e);
+  });
+}
+
+async function sincronizarAgora() {
+  const m = await lerSync();
+  if (m.dono && m.dono !== nuvem.usuarioNuvem()?.id) return;
+  const remotas = await nuvem.versoes();
+  const continuar = await sincronizarConta(m, remotas.conta);
+  if (continuar) await sincronizarDados(m, remotas.dados);
+  await armazenamento.gravar('sync', m);
+  estado(false);
+}
+
+/** Retorna false quando a sincronização deve parar (dados apagados ou acesso recriado em outro aparelho) */
+async function sincronizarConta(m, versaoNuvem) {
+  const contaLocal = await armazenamento.ler('conta');
+
+  if (!versaoNuvem) {
+    if (m.versao.conta > 0) {
+      // Já esteve na nuvem e sumiu: alguém usou "Apagar tudo" em outro aparelho
+      for (const k of ['dados', 'conta', 'base']) await armazenamento.apagar(k);
+      Object.assign(m, { versao: { conta: 0, dados: 0 }, pendente: { conta: false, dados: false } });
+      window.dispatchEvent(new Event('caixa:apagado-na-nuvem'));
+      return false;
+    }
+    if (contaLocal) {
+      const v = await nuvem.gravar('conta', contaLocal, 0);
+      if (v > 0) { m.versao.conta = v; m.pendente.conta = false; }
+    }
+    return true;
+  }
+
+  if (m.pendente.conta && contaLocal) {
+    const v = await nuvem.gravar('conta', contaLocal, m.versao.conta);
+    if (v > 0) { m.versao.conta = v; m.pendente.conta = false; return true; }
+    // outro aparelho também mudou a conta (nome, senha ou código)
+    const remota = await nuvem.ler('conta');
+    if (remota && remota.valor.criada_em === contaLocal.criada_em) {
+      const v2 = await nuvem.gravar('conta', contaLocal, remota.versao); // mesma conta: vale a mudança daqui
+      if (v2 > 0) { m.versao.conta = v2; m.pendente.conta = false; }
+      return true;
+    }
+    return trocarPelaContaDaNuvem(m, remota);
+  }
+
+  if (versaoNuvem !== m.versao.conta || !contaLocal) {
+    const remota = await nuvem.ler('conta');
+    if (!remota) return true;
+    if (contaLocal && remota.valor.criada_em !== contaLocal.criada_em && m.versao.conta > 0) {
+      return trocarPelaContaDaNuvem(m, remota);
+    }
+    await armazenamento.gravar('conta', remota.valor);
+    m.versao.conta = remota.versao;
+    m.pendente.conta = false;
+    if (chave && remota.valor.usuario && remota.valor.usuario !== local.usuario) {
+      local.usuario = remota.valor.usuario;
+      avisarTelas();
+    }
+  }
+  return true;
+}
+
+/** O acesso foi apagado e criado de novo em outro aparelho: a cópia daqui não serve mais */
+async function trocarPelaContaDaNuvem(m, remota) {
+  await armazenamento.gravar('conta', remota.valor);
+  for (const k of ['dados', 'base']) await armazenamento.apagar(k);
+  Object.assign(m, { versao: { conta: remota.versao, dados: 0 }, pendente: { conta: false, dados: false } });
+  window.dispatchEvent(new Event('caixa:apagado-na-nuvem'));
+  return false;
+}
+
+async function sincronizarDados(m, versaoNuvem) {
+  const dadosLocal = await armazenamento.ler('dados');
+
+  // Nada mudou aqui: só traz a versão da nuvem, se for mais nova
+  if (!m.pendente.dados) {
+    if (!versaoNuvem || versaoNuvem === m.versao.dados) return;
+    const remota = await nuvem.ler('dados');
+    if (!remota) return;
+    await armazenamento.gravar('dados', remota.valor);
+    await armazenamento.gravar('base', remota.valor);
+    m.versao.dados = remota.versao;
+    if (chave) {
+      await carregarDados();
+      avisarTelas();
+      avisarOutrasAbas('mudou');
+    }
+    return;
+  }
+
+  if (!dadosLocal) { m.pendente.dados = false; return; }
+
+  // Mudou aqui: tenta enviar direto (só dá certo se ninguém gravou na nuvem desde a última vez)
+  const esperada = versaoNuvem ? m.versao.dados : 0;
+  const v = await nuvem.gravar('dados', dadosLocal, esperada);
+  if (v > 0) {
+    await armazenamento.gravar('base', dadosLocal);
+    m.versao.dados = v;
+    m.pendente.dados = false;
+    return;
+  }
+
+  // Outro aparelho gravou antes. Para juntar, precisa da chave (sistema desbloqueado).
+  if (!chave) return;
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    const remota = await nuvem.ler('dados');
+    if (!remota) return; // sumiu enquanto isso: a próxima sincronização envia de novo
+    let deLa, base;
+    try {
+      deLa = await decifrar(chave, remota.valor);
+    } catch {
+      // não abre com esta chave: o acesso foi recriado em outro aparelho
+      window.dispatchEvent(new Event('caixa:apagado-na-nuvem'));
+      return;
+    }
+    const baseSalva = await armazenamento.ler('base');
+    try { base = baseSalva ? await decifrar(chave, baseSalva) : null; } catch { base = null; }
+
+    const antesDeJuntar = mudancas;
+    const daqui = structuredClone(banco.tabelas);
+    let juntas = mesclarTabelas(base?.tabelas || tabelasVazias(), daqui, deLa.tabelas || {}, TABELAS);
+    // se a pessoa mexeu em algo enquanto isso, junta essa mudança também
+    if (mudancas !== antesDeJuntar) juntas = mesclarTabelas(daqui, banco.tabelas, juntas, TABELAS);
+    const ultimoBackup = [local.ultimoBackup, deLa.ultimoBackup].filter(Boolean).sort().pop() || null;
+    const cifrado = await cifrar(chave, { tabelas: juntas, ultimoBackup });
+
+    const v2 = await nuvem.gravar('dados', cifrado, remota.versao);
+    if (v2 > 0) {
+      banco.tabelas = juntas;
+      local.ultimoBackup = ultimoBackup;
+      await armazenamento.gravar('dados', cifrado);
+      await armazenamento.gravar('base', cifrado);
+      marcaAtual = marcaDe(cifrado);
+      m.versao.dados = v2;
+      m.pendente.dados = false;
+      avisarTelas();
+      avisarOutrasAbas('mudou');
+      return;
+    }
+  }
+}
+
+// Confere a nuvem de tempos em tempos enquanto o app está aberto, e quando a internet volta
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => sincronizar());
+  setInterval(() => {
+    if (document.visibilityState === 'visible') sincronizar();
+  }, 20_000);
 }

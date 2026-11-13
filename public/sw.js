@@ -1,11 +1,12 @@
 // =====================================================================
 // Service worker: guarda os arquivos do sistema no aparelho para que ele
 // abra mesmo sem internet. Os DADOS não passam por aqui (ficam no IndexedDB
-// e são enviados pelo src/lib/sync.js).
+// e vão para a nuvem pelo src/lib/local-db.js).
 // Ao publicar uma versão nova, ela é baixada em segundo plano e usada na
 // próxima vez que o sistema for aberto.
 // =====================================================================
-const CACHE = 'caixa-v1';
+const PREFIXO = 'controle-financeiro-';
+const CACHE = `${PREFIXO}v1`;
 const BASICOS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {
@@ -24,7 +25,7 @@ self.addEventListener('install', (e) => {
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.keys().then((nomes) => Promise.all(nomes.filter((n) => n !== CACHE).map((n) => caches.delete(n))))
+    caches.keys().then((nomes) => Promise.all(nomes.filter((n) => n.startsWith(PREFIXO) && n !== CACHE).map((n) => caches.delete(n))))
       .then(() => self.clients.claim()),
   );
 });

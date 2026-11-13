@@ -1,6 +1,8 @@
 # Publica o sistema no GitHub Pages toda vez que você enviar código para a branch main.
 # Antes, configure: Settings > Pages > Source: "GitHub Actions"
-# (o site só entrega os arquivos do sistema; os dados ficam no aparelho de quem usa)
+# (o site só entrega os arquivos do sistema; os dados ficam no Supabase, cifrados, e no aparelho)
+# Os dados do Supabase podem ficar em src/nuvem.config.js ou em Settings > Secrets and variables >
+# Actions > Variables (SUPABASE_URL e SUPABASE_ANON_KEY).
 name: Publicar no GitHub Pages
 
 on:
@@ -27,6 +29,9 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

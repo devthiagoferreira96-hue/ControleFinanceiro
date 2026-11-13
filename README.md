@@ -2,16 +2,29 @@
 
 Sistema para controlar os gastos da família: entradas e saídas do caixa, contas a pagar, cartões de crédito com parcelas, relatórios e pagamentos de funcionários e prestadores. Ele substitui a planilha `NOVO_CAIXA.xlsx`.
 
-- **Funciona 100% sem internet.** Os dados ficam só no aparelho (celular ou computador) e não existe servidor nem banco de dados na nuvem.
-- **Protegido por senha.** Ela é pedida sempre que o sistema é aberto, e também criptografa os dados guardados no aparelho (AES-256).
-- **Backup por arquivo.** Gera um arquivo com todos os dados, para guardar no Drive, no e-mail ou no WhatsApp e restaurar quando precisar.
+- **Dados na nuvem (Supabase).** Tudo fica salvo na nuvem e aparece no celular e no computador. Você entra com e-mail e senha da nuvem **uma vez em cada aparelho**.
+- **Cifrado antes de sair do aparelho.** A senha do sistema cifra os dados (AES-256); o Supabase guarda, mas não consegue ler.
+- **Funciona sem internet.** Uma cópia fica no aparelho; o que for feito sem conexão vai para a nuvem quando ela voltar.
+- **Dois aparelhos ao mesmo tempo:** se os dois mudarem algo, as mudanças são juntadas linha por linha (nada se perde).
+- **Histórico na nuvem:** o banco guarda cópias anteriores (até ~1 mês) para recuperar em caso de acidente.
+- **Começa limpo:** sem categorias e sem cartões; cada usuário cadastra os seus em *Ajustes*.
 - **Instala no celular** como um aplicativo (PWA) e funciona no computador também.
 
-**Tecnologias:** JavaScript (ES Modules, sem framework), [Tailwind CSS 4](https://tailwindcss.com), [Vite](https://vite.dev), IndexedDB e Web Crypto (já vêm no navegador).
+**Tecnologias:** JavaScript (ES Modules, sem framework), [Tailwind CSS 4](https://tailwindcss.com), [Vite](https://vite.dev), [Supabase](https://supabase.com) (banco na nuvem, sem bibliotecas extras: usa a API direto), IndexedDB e Web Crypto (já vêm no navegador).
 
 ---
 
-## 1. Rodar no seu computador
+## 1. Preparar a nuvem (Supabase), uma vez só
+
+1. Crie um projeto grátis em [supabase.com](https://supabase.com).
+2. Em **SQL Editor > New query**, cole todo o arquivo `supabase/schema.sql` e clique em **Run**. Ele cria a tabela, as regras de segurança (cada um só vê os próprios dados) e o histórico.
+3. Em **Authentication > URL Configuration**, coloque em **Site URL** o endereço do site: `https://devthiagoferreira96-hue.github.io/ControleFinanceiro/` (e o mesmo em *Redirect URLs*). É para onde os links de e-mail (confirmar conta, trocar senha) levam.
+4. Opcional: em **Authentication > Sign In / Providers > Email**, desligue *Confirm email* para entrar sem precisar confirmar o e-mail.
+5. Em **Project Settings > API**, copie a **Project URL** e a chave **anon / publishable** e cole em `src/nuvem.config.js`. (Ou cadastre no GitHub em *Settings > Secrets and variables > Actions > Variables* com os nomes `SUPABASE_URL` e `SUPABASE_ANON_KEY`.)
+
+Essas duas informações são públicas por natureza (vão dentro do site). Quem protege os dados é o login e as regras do banco. **Nunca** coloque a chave `service_role`/`secret` no projeto.
+
+## 2. Rodar no seu computador
 
 Precisa do [Node.js](https://nodejs.org) 20 ou mais novo.
 
@@ -22,26 +35,24 @@ npm run dev
 
 Abra o endereço que aparecer no terminal (normalmente http://localhost:5173).
 
-No primeiro acesso, o sistema pede **seu nome** e uma **senha**. Marque *Começar com dados de exemplo* para conhecer o sistema; depois, em *Ajustes > Usuário e senha > Apagar tudo*, dá para começar do zero.
+No primeiro acesso, o sistema pede o **e-mail e a senha da nuvem** (crie a conta ali mesmo) e depois **seu nome** e a **senha do sistema**. Marque *Começar com dados de exemplo* para conhecer o sistema; depois, em *Ajustes > Usuário e senha > Apagar tudo*, dá para começar do zero.
 
-## 2. Publicar e instalar no celular
-
-Para instalar no celular, o sistema precisa estar num endereço **https**. Isso é só para entregar os arquivos do sistema: os dados nunca saem do aparelho. Duas opções gratuitas:
+## 3. Publicar e instalar no celular
 
 **GitHub Pages (já configurado):**
 
 1. Envie o projeto para o GitHub (`git push`).
 2. No repositório, vá em **Settings > Pages > Source** e escolha **GitHub Actions**.
-3. Quando a aba **Actions** ficar verde, o site estará em `https://devthiagoferreira96-hue.github.io/caixa/`.
-
-**Vercel:** em vercel.com, escolha **Add New > Project**, selecione o repositório e clique em **Deploy** (ela detecta o Vite sozinha). Se usar a Vercel, pode apagar `.github/workflows/deploy.yml`.
+3. Quando a aba **Actions** ficar verde, o site estará em `https://devthiagoferreira96-hue.github.io/ControleFinanceiro/`.
 
 **Instalar:**
 
 - **Android (Chrome):** abra o endereço, toque nos três pontinhos ⋮ e depois em **Instalar app**.
 - **iPhone (Safari):** abra o endereço, toque em compartilhar e depois em **Adicionar à Tela de Início**.
 
-Depois de instalado, o sistema abre e funciona sem internet. Quando você publicar uma versão nova, o celular atualiza sozinho na próxima vez que tiver internet; **os dados não são afetados**.
+Depois de instalado, o sistema abre mesmo sem internet. Quando você publicar uma versão nova, o celular atualiza sozinho na próxima vez que tiver internet; **os dados não são afetados**.
+
+**Já usava a versão antiga (só no aparelho)?** Nela, faça *Ajustes > Backup completo*. Na versão nova, no primeiro acesso, toque em *Já tenho um arquivo de backup*.
 
 ## Senha e segurança
 
@@ -52,7 +63,10 @@ Depois de instalado, o sistema abre e funciona sem internet. Quando você public
 - **Esqueceu a senha?** Na tela de senha, toque em *Esqueci minha senha*, digite o código e crie uma senha nova. Nenhum dado se perde. Depois de usado, o código é trocado por um novo, que é mostrado na hora.
 - **Perdeu o código?** Em *Ajustes > Usuário e senha > Novo código de recuperação* (pede a senha), o antigo deixa de valer.
 - **Sem a senha e sem o código** não há como abrir os dados: só um backup os traz de volta.
-- **Como funciona por dentro:** os dados são cifrados com uma chave aleatória. Essa chave fica guardada em duas "fechaduras", uma aberta pela senha e outra pelo código. Tudo acontece no aparelho, sem servidor (veja `src/lib/cofre.js`).
+- **Como funciona por dentro:** os dados são cifrados com uma chave aleatória. Essa chave fica guardada em duas "fechaduras", uma aberta pela senha e outra pelo código. A cifra acontece no aparelho; a nuvem só recebe o resultado cifrado (veja `src/lib/cofre.js`).
+- **Duas senhas:** a da **nuvem** (e-mail + senha, pedida uma vez por aparelho) diz *de quem* são os dados; a do **sistema** (pedida sempre) abre os dados. Esqueceu a da nuvem? *Esqueci a senha da nuvem* manda um link por e-mail. Esqueceu a do sistema? Use o código de recuperação.
+- **Sair da nuvem:** *Ajustes > Usuário e senha > Sair da nuvem neste aparelho* tira os dados só daquele aparelho (útil em computador emprestado).
+- **Apagar tudo** agora apaga da nuvem e de todos os aparelhos (o histórico do banco ainda guarda as últimas cópias).
 
 ## Casa, Fazenda e tipos de categoria
 
@@ -78,7 +92,7 @@ Depois de instalado, o sistema abre e funciona sem internet. Quando você public
 
 ## Backup
 
-Como os dados ficam só no aparelho, **perder o aparelho é perder os dados**, a não ser que exista um backup.
+Os dados já ficam na nuvem, com histórico. O arquivo de backup é uma **cópia extra**, guardada onde você quiser.
 
 - **Fazer backup:** *Ajustes > Backup e exportar > Backup, Excel ou PDF > Backup completo*. No celular, abre o *Compartilhar* (Drive, e-mail ou WhatsApp); no computador, baixa um arquivo `.json`.
 - **Exportar:** na mesma janela dá para gerar uma **planilha do Excel (.xlsx)** (abas Resumo, Lançamentos, Cartões e Por categoria, com filtros e totais) ou um **relatório em PDF**, do mês aberto, do ano ou de tudo. Os dois arquivos são montados no próprio aparelho, sem internet e sem bibliotecas externas (`src/lib/exportar-*.js`, `zip.js`). Servem para consultar: só o `.json` restaura os dados.
@@ -102,16 +116,19 @@ Roda os testes das regras de negócio (em qual fatura cai cada compra, divisão 
 index.html                 página única (o JavaScript monta as telas)
 public/                    ícones, manifest (instalar no celular) e sw.js (abrir sem internet)
 src/
-  main.js                  início: primeiro acesso ou tela de senha, bloqueio automático
+  nuvem.config.js          endereço e chave pública do Supabase
+  main.js                  início: conta da nuvem, primeiro acesso ou tela de senha, bloqueio automático
   router.js                troca de tela pelo endereço (#inicio, #extrato…)
   style.css                Tailwind + componentes (botões, campos, cartões)
   lib/
-    local-db.js            dados no aparelho: usuário, senha e tabelas cifradas
+    local-db.js            usuário, senha e tabelas cifradas; grava no aparelho e sincroniza com a nuvem
+    nuvem.js               Supabase: login e leitura/gravação das caixas cifradas (fetch, sem bibliotecas)
+    mesclar.js             junta mudanças feitas em dois aparelhos ao mesmo tempo
     cofre.js               criptografia (PBKDF2 + AES-GCM, Web Crypto)
-    armazenamento.js       IndexedDB (guardar no aparelho)
+    armazenamento.js       IndexedDB (cópia no aparelho, para abrir sem internet)
     consulta-local.js      consultas nos dados: from().select().eq().order()...
     api.js                 TODAS as leituras e gravações passam por aqui
-    exemplo.js             contas/cartões/categorias iniciais e dados de exemplo
+    exemplo.js             contas iniciais e dados de exemplo (categorias e cartões só no exemplo)
     store.js               dados em memória (contas, cartões, categorias…)
     faturas.js             regra de fechamento/vencimento e parcelas
     calculos.js            somas (substituem os SUMIF da planilha)
@@ -121,9 +138,10 @@ src/
   components/              peças usadas em várias telas (layout, gráficos, backup…)
   pages/                   uma tela por arquivo (acesso, início, extrato, novo…)
 tests/                     testes das regras (npm test)
+supabase/schema.sql        tabela, regras de segurança e histórico do banco na nuvem
 ```
 
-### Tabelas (guardadas no aparelho)
+### Tabelas (cifradas juntas numa única caixa "dados" por usuário, na nuvem e no aparelho)
 
 | Tabela | O que guarda | Na planilha |
 |---|---|---|
@@ -133,7 +151,7 @@ tests/                     testes das regras (npm test)
 | `categorias` | categorias, grupo e se aparecem no gráfico do Início | lista de categorias |
 | `pessoas` | funcionários, prestadores, família | coluna PESSOA |
 
-> As consultas em `consulta-local.js` usam o mesmo formato de bibliotecas de banco como o Supabase (`from('lancamentos').select('*').eq(...)`). Se um dia quiser guardar os dados na nuvem e usar em vários aparelhos, dá para trocar só a camada de dados, sem reescrever as telas.
+> As telas continuam usando as consultas de `consulta-local.js` (`from('lancamentos').select('*').eq(...)`) sobre os dados na memória. Só a camada que guarda (`local-db.js` + `nuvem.js`) mudou para levar tudo, cifrado, ao Supabase.
 
 ## Acessibilidade
 
