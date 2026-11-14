@@ -35,11 +35,15 @@ export function dadosDoPeriodo(periodo) {
     .map((p) => ({ ...p, valor: Number(p.valor), compra: compras.get(p.compra_id) }))
     .sort((a, b) => a.fatura_mes.localeCompare(b.fatura_mes) || a.compra.data_compra.localeCompare(b.compra.data_compra));
 
+  const grupoDe = (id) => { const c = store.categorias.find((x) => x.id === id); return c ? c.grupo || 'Outros' : ''; };
   const lancamentos = lancs.map((l) => ({
     data: l.vencimento,
     descricao: l.descricao || '',
     tipo: l.tipo === 'entrada' ? 'Entrada' : l.fatura_cartao_id ? 'Pagamento de fatura' : 'Saída',
     categoria: l.fatura_cartao_id ? `Fatura ${nomeDe('cartoes', l.fatura_cartao_id)}` : nomeDe('categorias', l.categoria_id, 'Sem categoria'),
+    grupo: l.fatura_cartao_id ? 'Cartão' : grupoDe(l.categoria_id),
+    entrada: l.tipo === 'entrada' ? Number(l.valor) : 0,
+    saida: l.tipo === 'entrada' ? 0 : Number(l.valor),
     conta: nomeDe('contas', l.conta_id),
     pessoa: nomeDe('pessoas', l.pessoa_id),
     valor: (l.tipo === 'entrada' ? 1 : -1) * Number(l.valor),
@@ -52,6 +56,7 @@ export function dadosDoPeriodo(periodo) {
     cartao: nomeDe('cartoes', p.compra.cartao_id),
     descricao: p.compra.descricao || '',
     categoria: nomeDe('categorias', p.compra.categoria_id, 'Sem categoria'),
+    grupo: grupoDe(p.compra.categoria_id),
     parcela: p.compra.qtd_parcelas > 1 ? `${p.numero}/${p.compra.qtd_parcelas}` : 'À vista',
     valor: p.valor,
   }));
@@ -82,6 +87,29 @@ export function dadosDoPeriodo(periodo) {
     })
     .sort((a, b) => b.total - a.total);
 
+  // Mês a mês, com cada categoria numa coluna: entradas (+) e gastos (−) de caixa e cartão.
+  // Pagamento de fatura não entra (o gasto já está nas compras do cartão).
+  const meses = new Map(); // "aaaa-mm" -> { entradas, saidas, cats: Map(nome -> valor) }
+  const noMes = (iso) => {
+    const k = iso.slice(0, 7);
+    return meses.get(k) || meses.set(k, { entradas: 0, saidas: 0, cats: new Map() }).get(k);
+  };
+  const somarCat = (m, nome, v) => m.cats.set(nome, Math.round(((m.cats.get(nome) || 0) + v) * 100) / 100);
+  entradas(lancs).forEach((l) => { const m = noMes(l.vencimento); m.entradas += Number(l.valor); somarCat(m, nomeDe('categorias', l.categoria_id, 'Sem categoria'), Number(l.valor)); });
+  saidasReais(lancs).forEach((l) => { const m = noMes(l.vencimento); m.saidas += Number(l.valor); somarCat(m, nomeDe('categorias', l.categoria_id, 'Sem categoria'), -Number(l.valor)); });
+  parcelas.forEach((p) => { const m = noMes(p.fatura_mes); m.saidas += p.valor; somarCat(m, nomeDe('categorias', p.compra.categoria_id, 'Sem categoria'), -p.valor); });
+  // colunas: categorias de entrada primeiro, depois as de gasto (cada grupo do maior para o menor)
+  const totalCat = new Map();
+  for (const m of meses.values()) for (const [n, v] of m.cats) totalCat.set(n, (totalCat.get(n) || 0) + v);
+  const nomesCategorias = [...totalCat.entries()].sort((a, b) => (b[1] > 0) - (a[1] > 0) || Math.abs(b[1]) - Math.abs(a[1])).map(([n]) => n);
+  const porMes = {
+    categorias: nomesCategorias,
+    meses: [...meses.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, m]) => ({
+      mes: `${k}-01`, entradas: m.entradas, saidas: m.saidas, resultado: m.entradas - m.saidas,
+      valores: nomesCategorias.map((n) => m.cats.get(n) || 0),
+    })),
+  };
+
   // Saldo de cada conta hoje (não depende do período)
   const saldos = new Map(store.contas.map((c) => [c.id, Number(c.saldo_inicial || 0)]));
   t.lancamentos.filter((l) => l.pago && saldos.has(l.conta_id))
@@ -99,6 +127,7 @@ export function dadosDoPeriodo(periodo) {
     lancamentos,
     cartao,
     categorias,
+    porMes,
     contas,
     areas,
     resumo: {

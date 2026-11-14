@@ -7,6 +7,7 @@ Sistema para controlar os gastos da família: entradas e saídas do caixa, conta
 - **Funciona sem internet.** Uma cópia fica no aparelho; o que for feito sem conexão vai para a nuvem quando ela voltar.
 - **Dois aparelhos ao mesmo tempo:** se os dois mudarem algo, as mudanças são juntadas linha por linha (nada se perde).
 - **Histórico na nuvem:** o banco guarda cópias anteriores (até ~1 mês) para recuperar em caso de acidente.
+- **Excel em formato de tabela:** a exportação traz abas com uma linha de títulos e um registro por linha (Entrada e Saída em colunas), além de "Categorias por mês" (cada categoria numa coluna). A importação reconhece as colunas por palavras-chave (Data, Descrição, Categoria, Entrada, Saída, Valor, Tipo, Conta, Cartão...), então aceita planilhas de outros sistemas.
 - **Começa limpo:** sem categorias e sem cartões; cada usuário cadastra os seus em *Ajustes*.
 - **Instala no celular** como um aplicativo (PWA) e funciona no computador também.
 

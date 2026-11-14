@@ -44,7 +44,7 @@ export async function importarDoExcel(aoTerminar) {
   }
   const modelo = abas.filter((a) => a.modelo);
   if (!modelo.length) {
-    toast('Essa planilha não está no modelo do caixa. Ela precisa ter as colunas STATUS, VENCIMENTO, CONTA BANCÁRIA, CATEGORIA, DESCRIÇÃO e DÉBITO/CRÉDITO.', { tipo: 'erro' });
+    toast('Não encontrei lançamentos nessa planilha. Ela precisa de uma linha de títulos com, pelo menos, Data, Descrição ou Categoria e o valor (Valor, ou Entrada e Saída).', { tipo: 'erro' });
     return;
   }
 
@@ -63,7 +63,7 @@ export async function importarDoExcel(aoTerminar) {
     titulo: 'Importar planilha do Excel',
     largura: 'max-w-2xl',
     corpo: `<form class="grid gap-4" data-form-importar novalidate>
-      <p class="text-sm text-stone-700 dark:text-stone-300">Arquivo <strong class="break-all">${esc(arquivo.name)}</strong>. Cada aba é um mês: confira se o mês e o ano estão certos e desmarque o que não quiser trazer.</p>
+      <p class="text-sm text-stone-700 dark:text-stone-300">Arquivo <strong class="break-all">${esc(arquivo.name)}</strong>. Confira o mês e o ano de cada aba (quando a aba for de um mês só) e desmarque o que não quiser trazer.</p>
       <fieldset class="grid gap-2">
         <legend class="rotulo mb-1">Abas da planilha</legend>
         ${modelo.map((a, i) => {
@@ -74,13 +74,13 @@ export async function importarDoExcel(aoTerminar) {
               <span class="min-w-0"><span class="block font-semibold">${esc(a.nome)}</span>
               <span class="block text-sm text-stone-600 dark:text-stone-400" data-contagem>${textoContagem(e.contagem)}</span></span>
             </label>
-            <div class="flex flex-wrap gap-2">
+            ${a.varios ? '<p class="text-sm text-stone-600 dark:text-stone-400">Várias datas: vale a data de cada linha.</p>' : `<div class="flex flex-wrap gap-2">
               <label class="sr-only" for="imp-mes-${i}">Mês da aba ${esc(a.nome)}</label>
               <select id="imp-mes-${i}" class="campo min-w-[9.5rem] flex-1" data-mes>${NOMES_MESES.map((m, k) => `<option value="${k + 1}" ${k + 1 === e.mes ? 'selected' : ''}>${m}</option>`).join('')}</select>
               <label class="sr-only" for="imp-ano-${i}">Ano da aba ${esc(a.nome)}</label>
               <input id="imp-ano-${i}" class="campo w-24 grow tabular-nums sm:grow-0" data-ano type="number" inputmode="numeric" min="2000" max="2100" value="${e.ano}">
-            </div>
-            ${e.semMes ? `<p class="text-sm text-amber-800 sm:col-span-2 dark:text-amber-300">${icone('alerta', 'inline size-4')} Não consegui descobrir o mês pelo nome da aba. Escolha o mês certo.</p>` : ''}
+            </div>`}
+            ${!a.varios && e.semMes ? `<p class="text-sm text-amber-800 sm:col-span-2 dark:text-amber-300">${icone('alerta', 'inline size-4')} Não consegui descobrir o mês pelo nome da aba. Escolha o mês certo.</p>` : ''}
           </div>`;
         }).join('')}
       </fieldset>
@@ -101,6 +101,7 @@ export async function importarDoExcel(aoTerminar) {
       const a = modelo[el.dataset.aba];
       const e = escolhas[a.nome];
       e.usar = el.querySelector('[data-usar]').checked;
+      if (a.varios) return;
       e.mes = Number(el.querySelector('[data-mes]').value);
       const ano = Number(el.querySelector('[data-ano]').value);
       e.ano = ano >= 2000 && ano <= 2100 ? ano : e.ano;

@@ -7,6 +7,13 @@
 //     DATA COMPRA | PARCELA | CATEGORIA | SUBCATEGORIA | DESCRIÇÃO | REFERENCIA | VALOR
 //     (cada linha é a parcela que caiu na fatura daquele mês)
 // As colunas são achadas pelo título, então a ordem pode mudar um pouco sem problema.
+//
+// Também entende planilhas "em tabela" de outros sistemas (e a exportada por este sistema):
+// uma linha de títulos e um lançamento por linha. Os títulos são reconhecidos por palavras-chave
+// (veja SINONIMOS): Data, Descrição, Categoria, Conta, Entrada, Saída, Valor, Tipo, Cartão...
+//   - Entrada e Saída em colunas separadas, ou Valor com sinal, ou Valor + Tipo (Entrada/Saída)
+//   - linha com Cartão preenchido = compra no cartão (Fatura e Parcela opcionais)
+//   - a aba pode ter vários meses: vale a data de cada linha
 import { store } from './store.js';
 import { local } from './local-db.js';
 import { somarMeses } from './format.js';
@@ -92,6 +99,26 @@ export function lerParcela(v) {
   return null;
 }
 
+// Palavras-chave dos títulos (sem acento, maiúsculas, só letras e números).
+// A ordem importa: o primeiro da lista ganha quando dois títulos servem.
+const SINONIMOS = {
+  status: ['STATUS', 'SITUACAO', 'PAGO', 'PAGA', 'QUITADO', 'BAIXADO'],
+  pagamento: ['DPGTO', 'DATAPAGAMENTO', 'DATADEPAGAMENTO', 'DATADOPAGAMENTO', 'PAGOEM', 'PAGAMENTO'],
+  vencimento: ['VENCIMENTO', 'DATAVENCIMENTO', 'DATADEVENCIMENTO', 'DATA', 'DATADACOMPRA', 'DATADELANCAMENTO', 'DATALANCAMENTO', 'DATAMOVIMENTO', 'DATADOMOVIMENTO', 'DATAMOVIMENTACAO', 'DIA', 'DT', 'DATE'],
+  conta: ['CONTABANCARIA', 'CONTA', 'BANCO', 'CARTEIRA', 'CAIXA', 'ACCOUNT'],
+  categoria: ['CATEGORIA', 'CLASSIFICACAO', 'PLANODECONTAS', 'NATUREZADAOPERACAO', 'CATEGORY'],
+  pessoa: ['PESSOA', 'FORNECEDOR', 'CLIENTE', 'FAVORECIDO', 'BENEFICIARIO', 'PAGADOR', 'RESPONSAVEL'],
+  descricao: ['DESCRICAO', 'HISTORICO', 'DESCRICAODOLANCAMENTO', 'LANCAMENTO', 'ITEM', 'DETALHE', 'DETALHES', 'OBSERVACAO', 'NOME', 'DESCRIPTION'],
+  referencia: ['REFERENCIA', 'DOCUMENTO', 'NUMERODOCUMENTO'],
+  parcela: ['PARCELA', 'PARCELAS', 'NPARCELA'],
+  valor: ['DEBITOCREDITO', 'DEBITOECREDITO', 'VALOR', 'VALORRS', 'VALORR', 'MONTANTE', 'QUANTIA', 'AMOUNT', 'VALUE'],
+  entrada: ['ENTRADA', 'ENTRADAS', 'CREDITO', 'CREDITOS', 'RECEITA', 'RECEITAS', 'RECEBIMENTO', 'RECEBIMENTOS', 'INCOME'],
+  saida: ['SAIDA', 'SAIDAS', 'DEBITO', 'DEBITOS', 'DESPESA', 'DESPESAS', 'GASTO', 'GASTOS', 'EXPENSE'],
+  tipo: ['TIPO', 'TIPODELANCAMENTO', 'NATUREZA', 'MOVIMENTO', 'OPERACAO', 'TYPE'],
+  cartao: ['CARTAO', 'CARTAODECREDITO', 'CARTOES', 'CARD'],
+  fatura: ['FATURA', 'MESDAFATURA', 'FATURAMES', 'MESFATURA'],
+};
+
 /** Acha os títulos das colunas da aba. Retorna null se a aba não for do modelo do caixa. */
 function lerTitulos(linhas) {
   for (let l = 0; l < Math.min(linhas.length, 8); l++) {
@@ -100,7 +127,6 @@ function lerTitulos(linhas) {
       for (let i = desde; i < ate; i++) if (t[i] === nome) return i;
       return -1;
     };
-    const valor = [col('DEBITOCREDITO'), col('DEBITOECREDITO'), col('VALOR')].find((i) => i >= 0) ?? -1;
     const blocos = [];
     t.forEach((x, i) => {
       if (x !== 'DATACOMPRA') return;
@@ -117,17 +143,48 @@ function lerTitulos(linhas) {
       if (b.valor > i) blocos.push(b);
     });
     const fimCaixa = blocos.length ? blocos[0].data : t.length;
-    const caixa = {
-      status: col('STATUS', 0, fimCaixa), pagamento: col('DPGTO', 0, fimCaixa) >= 0 ? col('DPGTO', 0, fimCaixa) : col('DATAPAGAMENTO', 0, fimCaixa),
-      vencimento: col('VENCIMENTO', 0, fimCaixa), conta: [col('CONTABANCARIA', 0, fimCaixa), col('CONTA', 0, fimCaixa)].find((i) => i >= 0) ?? -1,
-      categoria: col('CATEGORIA', 0, fimCaixa), pessoa: col('PESSOA', 0, fimCaixa), descricao: col('DESCRICAO', 0, fimCaixa),
-      referencia: col('REFERENCIA', 0, fimCaixa), parcela: col('PARCELA', 0, fimCaixa), valor: valor < fimCaixa ? valor : -1,
+
+    // Cada campo fica com uma coluna diferente, procurando pelas palavras-chave
+    const usadas = new Set();
+    const achar = (campo) => {
+      for (const nome of SINONIMOS[campo]) {
+        for (let i = 0; i < fimCaixa; i++) if (!usadas.has(i) && t[i] === nome) { usadas.add(i); return i; }
+      }
+      return -1;
     };
-    // precisa das colunas próprias do modelo (STATUS ou VENCIMENTO), não basta ter Descrição e Valor
-    const temCaixa = caixa.valor >= 0 && (caixa.descricao >= 0 || caixa.categoria >= 0) && (caixa.status >= 0 || caixa.vencimento >= 0);
+    const caixa = {};
+    // ordem: os mais específicos primeiro (assim "Data de pagamento" não vira a data do lançamento)
+    for (const campo of ['pagamento', 'fatura', 'vencimento', 'valor', 'entrada', 'saida', 'tipo', 'cartao', 'conta', 'categoria', 'pessoa', 'descricao', 'referencia', 'parcela', 'status']) {
+      caixa[campo] = achar(campo);
+    }
+    const temValor = caixa.valor >= 0 || caixa.entrada >= 0 || caixa.saida >= 0;
+    // precisa de valor, de descrição/categoria e de data (ou STATUS); não basta ter Descrição e Valor
+    const temCaixa = temValor && (caixa.descricao >= 0 || caixa.categoria >= 0) && (caixa.status >= 0 || caixa.vencimento >= 0);
     if (temCaixa || blocos.length) return { linha: l, caixa: temCaixa ? caixa : null, blocos };
   }
   return null;
+}
+
+/** "Entrada"/"Receita"/"Crédito" → 1, "Saída"/"Despesa"/"Débito"/"Pagamento" → -1, outro → 0 */
+function sinalDoTipo(v) {
+  const k = chave(v);
+  if (/^(ENTRADA|RECEITA|CREDITO|RECEBIMENTO|RECEBIDO|INCOME|C$)/.test(k)) return 1;
+  if (/^(SAIDA|DESPESA|DEBITO|PAGAMENTO|GASTO|COMPRA|EXPENSE|D$)/.test(k)) return -1;
+  return 0;
+}
+
+/** Mês de uma célula ("11/2026", "nov/2026", data do Excel, "2026-11") → "aaaa-mm-01" ou null */
+function lerMes(v, ref) {
+  if (v == null || v === '') return null;
+  const s = String(v).trim();
+  let m = /^(\d{1,2})[/.-](\d{4})$/.exec(s);
+  if (m && +m[1] >= 1 && +m[1] <= 12) return iso(+m[2], +m[1], 1);
+  m = /^(\d{4})[/.-](\d{1,2})$/.exec(s);
+  if (m && +m[2] >= 1 && +m[2] <= 12) return iso(+m[1], +m[2], 1);
+  const pelo = mesDoNome(s);
+  if (pelo.mes && pelo.ano) return iso(pelo.ano, pelo.mes, 1);
+  const d = lerData(v, ref);
+  return d ? `${d.slice(0, 7)}-01` : null;
 }
 
 /** Linha de total do modelo (ex.: "TOTAL FATURA" com a soma embaixo de cada cartão) */
@@ -144,8 +201,10 @@ const SALDO_ANTERIOR = /SALDOANTERIOR|SALDOINICIAL|SALDODOMESANTERIOR|SALDOMESAN
  */
 export function reconhecerAbas(abas) {
   const hoje = new Date();
+  // abas de totais/resumo exportadas por este sistema não são lançamentos
+  const SO_RESUMO = new Set(['RESUMO', 'PORCATEGORIA', 'CATEGORIASPORMES']);
   const lidas = abas.map((a) => {
-    const titulos = lerTitulos(a.linhas);
+    const titulos = SO_RESUMO.has(chave(a.nome)) ? null : lerTitulos(a.linhas);
     if (!titulos) return { nome: a.nome, modelo: false };
     const pelo = mesDoNome(a.nome);
     if (!pelo.mes) {
@@ -168,9 +227,11 @@ export function reconhecerAbas(abas) {
       lista.forEach((x) => c.set(x, (c.get(x) || 0) + 1));
       return [...c.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
     };
+    // aba "em tabela" com vários meses (ex.: exportada deste sistema): vale a data de cada linha
+    const varios = !pelo.mes && new Set(datas.map((d) => d.slice(0, 7))).size > 1;
     const mes = pelo.mes ?? (moda(datas.map((d) => +d.slice(5, 7))) || null);
     const ano = pelo.ano ?? moda(datas.filter((d) => +d.slice(5, 7) === mes).map((d) => +d.slice(0, 4))) ?? moda(datas.map((d) => +d.slice(0, 4)));
-    return { nome: a.nome, modelo: true, oculta: a.oculta, titulos, linhas: a.linhas, mes, ano, anoAdivinhado: !ano };
+    return { nome: a.nome, modelo: true, oculta: a.oculta, titulos, linhas: a.linhas, mes, ano, anoAdivinhado: !ano, varios };
   });
   // ano não encontrado: o ano atual (ou o anterior, se o mês ainda não chegou)
   for (const a of lidas) {
@@ -282,6 +343,7 @@ export function montarPlano(abas, escolhas, resolucoes = {}) {
   // mesmo mês em duas abas: pode ser cópia
   const vistos = new Map();
   usadas.forEach((a) => {
+    if (a.varios) return;
     const k = `${a.ano}-${a.mes}`;
     if (vistos.has(k)) avisos.push(`As abas "${vistos.get(k)}" e "${a.nome}" são as duas de ${NOMES_MESES[a.mes - 1].toLowerCase()} de ${a.ano}. Confira se uma não é cópia da outra.`);
     vistos.set(k, a.nome);
@@ -307,13 +369,45 @@ export function montarPlano(abas, escolhas, resolucoes = {}) {
         const desc = limpo(cel(r, caixa.descricao));
         const cat = limpo(cel(r, caixa.categoria));
         const bruto = cel(r, caixa.valor);
-        if (!desc && !cat && (bruto == null || bruto === '')) continue; // linha vazia (ou só com a fórmula do saldo)
-        if (TOTAL.test(chave(desc)) || TOTAL.test(chave(cat))) continue;
-        const v = lerNumero(bruto);
+        const vazio = (x) => x == null || x === '';
+        const semValor = vazio(bruto) && vazio(cel(r, caixa.entrada)) && vazio(cel(r, caixa.saida));
+        if (!desc && !cat && semValor) continue; // linha vazia (ou só com a fórmula do saldo)
+        if (TOTAL.test(chave(desc)) || TOTAL.test(chave(cat)) || TOTAL.test(chave(cel(r, caixa.vencimento)))) continue;
+        // valor: colunas Entrada/Saída separadas, ou Valor com sinal; a coluna Tipo, se houver, decide o sinal
+        let v = null;
+        if (caixa.entrada >= 0 || caixa.saida >= 0) {
+          const e = Math.abs(lerNumero(cel(r, caixa.entrada)) || 0), sa = Math.abs(lerNumero(cel(r, caixa.saida)) || 0);
+          if (e || sa) v = Math.round((e - sa) * 100) / 100;
+        }
+        if (!v) v = lerNumero(bruto);
+        const sinal = sinalDoTipo(cel(r, caixa.tipo));
+        const cartaoDaLinha = limpo(cel(r, caixa.cartao));
+        if (v && sinal) v = sinal * Math.abs(v);
+        else if (v && cartaoDaLinha && !(caixa.entrada >= 0 || caixa.saida >= 0)) v = -Math.abs(v); // compra no cartão: gasto
         if (!v) { aviso(a, l, `"${desc || cat}" está sem valor e não foi importado.`); continue; }
         if (Math.abs(v) > 99_999_999.99) { aviso(a, l, `"${desc || cat}" tem valor acima do limite e não foi importado.`); continue; }
         const tipo = v > 0 ? 'entrada' : 'saida';
         const onde = { aba: a.nome, linha: l + 1, texto: desc || cat };
+
+        // ----- compra no cartão escrita em tabela (coluna Cartão preenchida)
+        if (cartaoDaLinha) {
+          if (tipo === 'entrada') { aviso(a, l, `"${desc || cat}" no ${cartaoDaLinha} é um crédito (estorno) e não foi importado. Lance como entrada se precisar.`); continue; }
+          const cartaoItem = cartao(cartaoDaLinha, onde, 1);
+          if (fora(cartaoItem)) continue;
+          const catItem = categoria(cat, 'saida', onde);
+          if (fora(catItem)) continue;
+          const { numero, total } = lerParcela(cel(r, caixa.parcela)) || { numero: 1, total: 1 };
+          const dataCompra = lerData(cel(r, caixa.vencimento), ref) || mesISO;
+          const fatura = lerMes(cel(r, caixa.fatura), ref) || `${dataCompra.slice(0, 7)}-01`;
+          linhasCartao.push({
+            aba: a.nome, cartao: cartaoItem, numero, total, valor: Math.abs(v), fatura, data: dataCompra,
+            descricao: [desc || cat || 'Compra no cartão', limpo(cel(r, caixa.referencia))].filter(Boolean).join(' ').slice(0, 120),
+            categoria: catItem, sub: null,
+          });
+          resumoAbas.get(a.nome).cartao++;
+          continue;
+        }
+
         const contaItem = conta(cel(r, caixa.conta), onde);
         if (fora(contaItem)) continue;
 
@@ -324,7 +418,7 @@ export function montarPlano(abas, escolhas, resolucoes = {}) {
           continue;
         }
 
-        const pago = ['OK', 'PAGO', 'RECEBIDO', 'SIM', 'X'].includes(chave(cel(r, caixa.status)));
+        const pago = ['OK', 'PAGO', 'PAGA', 'RECEBIDO', 'RECEBIDA', 'QUITADO', 'SIM', 'S', 'X', 'TRUE', 'VERDADEIRO'].includes(chave(cel(r, caixa.status)));
         const venc = lerData(cel(r, caixa.vencimento), ref) || lerData(cel(r, caixa.pagamento), ref) || mesISO;
         const dataPgto = pago ? lerData(cel(r, caixa.pagamento), ref) || venc : null;
         const parc = cel(r, caixa.parcela);
@@ -344,7 +438,7 @@ export function montarPlano(abas, escolhas, resolucoes = {}) {
           id: crypto.randomUUID(), tipo, valor: Math.abs(v), descricao, vencimento: venc, pago, data_pagamento: dataPgto,
           conta_id: contaItem.id, pessoa_id: pessoa(cel(r, caixa.pessoa))?.id ?? null, origem: 'planilha',
           categoria_id: catItem?.id ?? null,
-          ...(cartaoPago ? { fatura_cartao_id: cartaoPago.id, fatura_mes: mesISO } : {}),
+          ...(cartaoPago ? { fatura_cartao_id: cartaoPago.id, fatura_mes: a.varios ? `${venc.slice(0, 7)}-01` : mesISO } : {}),
         };
         if (repetido(jaTemLanc, kLanc(item))) { repetidos++; continue; }
         if (cartaoPago) faturas++;

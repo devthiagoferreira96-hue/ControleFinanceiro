@@ -118,33 +118,43 @@ export function gerarExcel(periodo) {
   ];
   const fimContas = resumo.length;
   resumo.push(linhaTotal(2, [1], fimContas - d.contas.length + 1, fimContas, [d.contas.reduce((s, c) => s + c.saldo, 0)]));
-  resumo.push([], [T('Cada aba tem filtros no cabeçalho. Os valores negativos são saídas.')]);
 
-  // --- Lançamentos
-  const cabL = ['Data', 'Descrição', 'Tipo', 'Categoria', 'Conta', 'Pessoa', 'Valor', 'Situação'];
-  const linhasL = d.lancamentos.map((l) => [D(l.data), T(l.descricao), T(l.tipo), T(l.categoria), T(l.conta), T(l.pessoa), N(l.valor), T(l.situacao)]);
-  const lancamentos = [cabL.map((c) => T(c, E.cabecalho)), ...linhasL,
-    linhaTotal(8, [6], 2, linhasL.length + 1, [d.lancamentos.reduce((s, l) => s + l.valor, 0)])];
+  resumo.push([], [T('As abas Lançamentos, Cartões e Categorias por mês estão em formato de tabela')],
+    [T('(uma linha de títulos e um registro por linha), prontas para filtrar e para importar em outros sistemas.')]);
 
-  // --- Cartões
-  const cabC = ['Fatura', 'Data da compra', 'Cartão', 'Descrição', 'Categoria', 'Parcela', 'Valor'];
-  const linhasC = d.cartao.map((c) => [D(c.fatura, E.mes), D(c.data), T(c.cartao), T(c.descricao), T(c.categoria), T(c.parcela), N(c.valor)]);
-  const cartoes = [cabC.map((c) => T(c, E.cabecalho)), ...linhasC,
-    linhaTotal(7, [6], 2, linhasC.length + 1, [d.cartao.reduce((s, c) => s + c.valor, 0)])];
+  // As abas de dados ficam "limpas": só a linha de títulos e um registro por linha,
+  // sem título, sem linha de total e sem células mescladas (outros sistemas leem direto).
 
-  // --- Por categoria
+  // --- Lançamentos (caixa): Entrada e Saída em colunas separadas, sempre positivas
+  const cabL = ['Data', 'Descrição', 'Categoria', 'Grupo', 'Tipo', 'Entrada', 'Saída', 'Conta', 'Pessoa', 'Situação'];
+  const linhasL = d.lancamentos.map((l) => [
+    D(l.data), T(l.descricao), T(l.categoria), T(l.grupo), T(l.tipo),
+    l.entrada ? N(l.entrada) : T(''), l.saida ? N(l.saida) : T(''), T(l.conta), T(l.pessoa), T(l.situacao),
+  ]);
+  const lancamentos = [cabL.map((c) => T(c, E.cabecalho)), ...linhasL];
+
+  // --- Cartões: uma linha por parcela, na fatura em que ela cai
+  const cabC = ['Fatura', 'Data da compra', 'Cartão', 'Descrição', 'Categoria', 'Grupo', 'Parcela', 'Saída'];
+  const linhasC = d.cartao.map((c) => [D(c.fatura, E.mes), D(c.data), T(c.cartao), T(c.descricao), T(c.categoria), T(c.grupo), T(c.parcela), N(c.valor)]);
+  const cartoes = [cabC.map((c) => T(c, E.cabecalho)), ...linhasC];
+
+  // --- Categorias por mês: cada categoria é uma coluna, cada mês é uma linha (+ entrada, − gasto)
+  const cabM = ['Mês', 'Entradas', 'Saídas', 'Resultado', ...d.porMes.categorias];
+  const linhasM = d.porMes.meses.map((m) => [D(m.mes, E.mes), N(m.entradas), N(m.saidas), N(m.resultado), ...m.valores.map((v) => (v ? N(v) : N(0)))]);
+  const porMes = [cabM.map((c) => T(c, E.cabecalho)), ...linhasM];
+
+  // --- Por categoria (total do período)
   const cabG = ['Categoria', 'Grupo', 'Caixa', 'Cartão', 'Total', '% dos gastos'];
   const linhasG = d.categorias.map((c) => [T(c.categoria), T(c.grupo), N(c.caixa), N(c.cartao), N(c.total), N(c.parte, E.porcento)]);
-  const categorias = [cabG.map((c) => T(c, E.cabecalho)), ...linhasG,
-    linhaTotal(6, [2, 3, 4], 2, linhasG.length + 1, [
-      d.categorias.reduce((s, c) => s + c.caixa, 0), d.categorias.reduce((s, c) => s + c.cartao, 0), d.resumo.gastos,
-    ])];
+  const categorias = [cabG.map((c) => T(c, E.cabecalho)), ...linhasG];
 
+  const ultima = (n) => coluna(n - 1);
   const abas = [
-    { nome: 'Resumo', linhas: resumo, larguras: [34, 20, 20, 20] },
-    { nome: 'Lançamentos', linhas: lancamentos, larguras: [12, 34, 20, 28, 14, 16, 19, 11], congelar: 1, filtro: `A1:H${linhasL.length + 1}` },
-    { nome: 'Cartões', linhas: cartoes, larguras: [10, 15, 18, 32, 28, 10, 19], congelar: 1, filtro: `A1:G${linhasC.length + 1}` },
+    { nome: 'Lançamentos', linhas: lancamentos, larguras: [12, 34, 28, 14, 20, 15, 15, 14, 16, 11], congelar: 1, filtro: `A1:J${linhasL.length + 1}` },
+    { nome: 'Cartões', linhas: cartoes, larguras: [10, 15, 18, 32, 28, 14, 10, 15], congelar: 1, filtro: `A1:H${linhasC.length + 1}` },
+    { nome: 'Categorias por mês', linhas: porMes, larguras: [10, 15, 15, 15, ...d.porMes.categorias.map((n) => Math.min(30, Math.max(13, n.length + 3)))], congelar: 1, filtro: `A1:${ultima(cabM.length)}${linhasM.length + 1}` },
     { nome: 'Por categoria', linhas: categorias, larguras: [30, 14, 19, 19, 19, 13], congelar: 1, filtro: `A1:F${linhasG.length + 1}` },
+    { nome: 'Resumo', linhas: resumo, larguras: [34, 20, 20, 20] },
   ];
 
   const arquivos = [

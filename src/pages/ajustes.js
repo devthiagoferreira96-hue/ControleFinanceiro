@@ -233,7 +233,7 @@ function linha(tabela, def, item) {
           <input id="${id}" type="checkbox" name="${c.nome}" class="size-5 accent-brand-600" ${valor ? 'checked' : ''}>${c.rotulo}</label>`;
       }
       if (c.tipo === 'dinheiro') campo = `<input id="${id}" name="${c.nome}" class="campo tabular-nums" inputmode="numeric" data-dinheiro value="${valorParaCampo(Math.abs(valor))}" placeholder="0,00">
-        <label class="mt-1 flex items-center gap-1.5 text-xs"><input type="checkbox" name="${c.nome}_negativo" class="accent-red-700" ${valor < 0 ? 'checked' : ''}> negativo</label>`;
+        <label class="mt-1 flex min-h-8 items-center gap-2 text-sm"><input type="checkbox" name="${c.nome}_negativo" class="size-5 accent-red-700" ${valor < 0 ? 'checked' : ''}> negativo</label>`;
       else if (c.tipo === 'dia') campo = `<input id="${id}" name="${c.nome}" type="number" min="1" max="31" class="campo" value="${valor}">`;
       else if (c.tipo === 'opcoes') campo = `<select id="${id}" name="${c.nome}" class="campo">${c.opcoes.map((o) => {
         const [v, texto] = Array.isArray(o) ? o : [o, o];
