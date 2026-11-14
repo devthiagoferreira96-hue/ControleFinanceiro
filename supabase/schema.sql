@@ -1,5 +1,5 @@
 -- =====================================================================
--- Controle Financeiro (Caixa da Família) - banco na nuvem (Supabase)
+-- Controle Financeiro (Controle seu caixa) - banco na nuvem (Supabase)
 -- Cole tudo no Supabase em: SQL Editor > New query > Run.
 -- Pode rodar mais de uma vez sem problema.
 --

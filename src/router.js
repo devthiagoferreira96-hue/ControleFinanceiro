@@ -33,7 +33,7 @@ function navegar(primeiraVez) {
   telaAtual = TELAS[rota] || TELAS.inicio;
   marcarMenu(rota);
   document.getElementById('titulo-pagina').textContent = telaAtual.titulo;
-  document.title = `${telaAtual.titulo} · Caixa da Família`;
+  document.title = `${telaAtual.titulo} · Controle seu caixa`;
   redesenharMes = seletorMes(telaAtual.usaMes, () => desenhar(true)) || (() => {});
   desenhar(false).then(() => {
     // leva o foco para o título (quem usa leitor de tela ouve em qual tela entrou)

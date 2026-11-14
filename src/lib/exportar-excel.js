@@ -97,7 +97,7 @@ export function gerarExcel(periodo) {
 
   // --- Resumo
   const resumo = [
-    [T('Caixa da Família', E.titulo)],
+    [T('Controle seu caixa', E.titulo)],
     [T(`Período: ${textoDoPeriodo(periodo)}`)],
     [T(`Gerado em ${geradoEm} por ${local.usuario || ''}`)],
     [],
@@ -161,7 +161,7 @@ export function gerarExcel(periodo) {
     {
       nome: 'docProps/core.xml',
       conteudo: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Caixa da Família - ${xml(textoDoPeriodo(periodo))}</dc:title><dc:creator>${xml(local.usuario || 'Caixa da Família')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0, 19)}Z</dcterms:created></cp:coreProperties>`,
+<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>Controle seu caixa - ${xml(textoDoPeriodo(periodo))}</dc:title><dc:creator>${xml(local.usuario || 'Controle seu caixa')}</dc:creator><dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString().slice(0, 19)}Z</dcterms:created></cp:coreProperties>`,
     },
     {
       nome: 'xl/workbook.xml',

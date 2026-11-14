@@ -11,7 +11,7 @@ const app = () => document.getElementById('app');
 const marca = (subtitulo) => `
   <div class="mb-6 flex flex-col items-center gap-3 text-center">
     <span class="flex size-14 items-center justify-center rounded-2xl bg-brand-600 text-lg font-bold text-white" aria-hidden="true">R$</span>
-    <div><h1 class="text-2xl font-bold">Caixa da Família</h1>
+    <div><h1 class="text-2xl font-bold">Controle seu caixa</h1>
     <p class="text-stone-600 dark:text-stone-400">${subtitulo}</p></div>
   </div>`;
 
@@ -37,7 +37,7 @@ function ligarMostrarSenha(raiz) {
 
 // ---------- Primeiro acesso: criar usuário e senha
 export function telaPrimeiroAcesso(aoEntrar, restaurando = null) {
-  document.title = 'Começar · Caixa da Família';
+  document.title = 'Começar · Controle seu caixa';
   app().innerHTML = `
   <main class="grid min-h-dvh place-items-center p-4">
     <div class="w-full max-w-sm animate-entrar">
@@ -105,7 +105,7 @@ export function telaPrimeiroAcesso(aoEntrar, restaurando = null) {
 
 // ---------- Ao abrir o sistema: pedir a senha
 export function telaSenha(usuario, aoEntrar) {
-  document.title = 'Entrar · Caixa da Família';
+  document.title = 'Entrar · Controle seu caixa';
   let erros = 0;
   app().innerHTML = `
   <main class="grid min-h-dvh place-items-center p-4">

@@ -28,7 +28,7 @@ async function iniciar() {
   return depoisDaNuvem();
 }
 
-/** Já conectado à nuvem: traz os dados e segue o fluxo de sempre (senha do Caixa) */
+/** Já conectado à nuvem: traz os dados e segue o fluxo de sempre (senha do sistema) */
 async function depoisDaNuvem() {
   telaCarregando();
   await local.conectarNuvem();

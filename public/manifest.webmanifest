@@ -1,6 +1,6 @@
 {
-  "name": "Caixa da Família",
-  "short_name": "Caixa",
+  "name": "Controle seu caixa",
+  "short_name": "Controle seu caixa",
   "description": "Controle de gastos, contas e cartões da família",
   "lang": "pt-BR",
   "start_url": "./",

@@ -37,7 +37,7 @@ export async function fazerBackup() {
   const nome = `caixa-familia-backup-${hojeISO()}.json`;
   const arquivo = new File([JSON.stringify(conteudoBackup(), null, 1)], nome, { type: 'application/json' });
   try {
-    if (!(await entregar(arquivo, 'Backup do Caixa da Família'))) return false;
+    if (!(await entregar(arquivo, 'Backup do Controle seu caixa'))) return false;
     await local.marcarBackup();
     toast(`Backup gerado: ${nome}. Guarde o arquivo num lugar seguro (Drive, e-mail ou WhatsApp).`);
     return true;
@@ -71,7 +71,7 @@ export async function exportar(formato, periodoId) {
   try {
     const bytes = await f.gerar(p);
     const arquivo = new File([bytes], nome, { type: f.tipo });
-    if (!(await entregar(arquivo, `${f.nome} do Caixa da Família`))) return false;
+    if (!(await entregar(arquivo, `${f.nome} do Controle seu caixa`))) return false;
     toast(`${f.nome} gerado: ${nome}`);
     return true;
   } catch (e) {

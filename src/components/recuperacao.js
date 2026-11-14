@@ -7,7 +7,7 @@ import { esc } from '../lib/format.js';
  * `motivo` muda o texto de cima (primeiro acesso, código novo, depois de recuperar...).
  */
 export function mostrarCodigoRecuperacao(codigo, { motivo = 'criado' } = {}) {
-  const mensagem = `Código de recuperação do Caixa da Família: ${codigo}\n\nGuarde esta mensagem. Se esquecer a senha, é com este código que você cria uma senha nova.`;
+  const mensagem = `Código de recuperação do Controle seu caixa: ${codigo}\n\nGuarde esta mensagem. Se esquecer a senha, é com este código que você cria uma senha nova.`;
   const titulos = {
     criado: 'Seu código de recuperação',
     novo: 'Seu novo código de recuperação',

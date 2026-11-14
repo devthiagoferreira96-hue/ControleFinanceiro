@@ -180,7 +180,7 @@ class Documento {
       filhos.push(`${objetos.length} 0 R`);
     });
     objetos[1] = `<< /Type /Pages /Kids [${filhos.join(' ')}] /Count ${total} >>`;
-    add(`<< /Title ${literal('Caixa da Família')} /Producer ${literal('Caixa da Família')} >>`);
+    add(`<< /Title ${literal('Controle seu caixa')} /Producer ${literal('Controle seu caixa')} >>`);
     const info = objetos.length;
 
     // Tudo aqui é ASCII (letras acentuadas foram escritas como \ooo), então 1 caractere = 1 byte
@@ -215,7 +215,7 @@ export function gerarPDF(periodo) {
   // Cabeçalho
   doc.retangulo(MARGEM, doc.y - 30, 30, 30, COR.marca);
   doc.texto(MARGEM + 15 - larguraTexto('R$', 11, true) / 2, doc.y - 19, 'R$', { tam: 11, negrito: true, c: [1, 1, 1] });
-  doc.texto(MARGEM + 40, doc.y - 13, 'Caixa da Família', { tam: 17, negrito: true, c: COR.marca });
+  doc.texto(MARGEM + 40, doc.y - 13, 'Controle seu caixa', { tam: 17, negrito: true, c: COR.marca });
   doc.texto(MARGEM + 40, doc.y - 28, `Relatório: ${periodo.id === 'mes' ? nomeMes(parseISO(periodo.inicio)) : periodo.curto}`, { tam: 10.5, c: COR.texto });
   doc.y -= 44;
   doc.texto(MARGEM, doc.y, `Período: ${textoDoPeriodo(periodo)}   ·   Gerado em ${geradoEm}${local.usuario ? ` por ${local.usuario}` : ''}`, { tam: 8.5, c: COR.suave, largura: UTIL });
@@ -323,5 +323,5 @@ export function gerarPDF(periodo) {
     { total: ['Total', '', '', '', '', reais(d.cartao.reduce((s, c) => s + c.valor, 0))], vazio: 'Nenhuma compra no cartão neste período.' },
   );
 
-  return doc.arquivo((pag, total) => ({ esquerda: `Caixa da Família  ·  ${textoDoPeriodo(periodo)}`, direita: `Página ${pag} de ${total}` }));
+  return doc.arquivo((pag, total) => ({ esquerda: `Controle seu caixa  ·  ${textoDoPeriodo(periodo)}`, direita: `Página ${pag} de ${total}` }));
 }

@@ -251,9 +251,9 @@ export function conteudoBackup() {
 /** Lê e confere um arquivo de backup. Retorna as tabelas ou lança erro com mensagem clara. */
 export function lerBackup(textoDoArquivo) {
   let dados;
-  try { dados = JSON.parse(textoDoArquivo); } catch { throw new Error('Esse arquivo não é um backup do Caixa da Família.'); }
+  try { dados = JSON.parse(textoDoArquivo); } catch { throw new Error('Esse arquivo não é um backup do Controle seu caixa.'); }
   if (dados?.app !== 'caixa-familia' || !dados.tabelas || typeof dados.tabelas !== 'object' || Array.isArray(dados.tabelas)) {
-    throw new Error('Esse arquivo não é um backup do Caixa da Família.');
+    throw new Error('Esse arquivo não é um backup do Controle seu caixa.');
   }
   for (const t of local.TABELAS) {
     if (dados.tabelas[t] !== undefined && !Array.isArray(dados.tabelas[t])) throw new Error('O arquivo de backup está danificado.');

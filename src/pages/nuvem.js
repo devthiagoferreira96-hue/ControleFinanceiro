@@ -8,7 +8,7 @@ const app = () => document.getElementById('app');
 const marca = (subtitulo) => `
   <div class="mb-6 flex flex-col items-center gap-3 text-center">
     <span class="flex size-14 items-center justify-center rounded-2xl bg-brand-600 text-lg font-bold text-white" aria-hidden="true">R$</span>
-    <div><h1 class="text-2xl font-bold">Caixa da Família</h1>
+    <div><h1 class="text-2xl font-bold">Controle seu caixa</h1>
     <p class="text-stone-600 dark:text-stone-400">${subtitulo}</p></div>
   </div>`;
 
@@ -36,7 +36,7 @@ const emailValido = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 // ---------- Entrar ou criar a conta da nuvem
 export function telaNuvem(aoEntrar, { aviso = '', criar = false } = {}) {
-  document.title = 'Entrar · Caixa da Família';
+  document.title = 'Entrar · Controle seu caixa';
   app().innerHTML = `
   <main class="grid min-h-dvh place-items-center p-4">
     <div class="w-full max-w-sm animate-entrar">
@@ -51,9 +51,6 @@ export function telaNuvem(aoEntrar, { aviso = '', criar = false } = {}) {
         ${criar ? campoSenha('confirmar', 'Repita a senha', 'new-password') : ''}
         <p id="erro-nuvem" class="erro-campo -mt-2 hidden" role="alert"></p>
         <button type="submit" class="btn-primario">${criar ? 'Criar conta' : 'Entrar'}</button>
-        <p class="rounded-xl bg-stone-50 p-3 text-sm text-stone-600 dark:bg-stone-800/50 dark:text-stone-400">
-          Com esta conta, seus dados ficam guardados na nuvem e aparecem no celular e no computador. Você entra <strong>uma vez em cada aparelho</strong>; depois o sistema pede só a senha do Caixa, como sempre. Os dados vão cifrados: nem o servidor consegue lê-los.
-        </p>
       </form>
       <div class="mt-4 flex flex-col items-center gap-1">
         <button type="button" data-trocar class="cursor-pointer p-2 text-sm font-semibold text-brand-700 underline underline-offset-2 dark:text-brand-400">${criar ? 'Já tenho conta: entrar' : 'Ainda não tenho conta: criar'}</button>
@@ -136,7 +133,7 @@ function esqueciSenhaNuvem(emailDigitado) {
 
 // ---------- Voltou pelo link do e-mail "trocar senha": cria a senha nova da nuvem
 export function telaNovaSenhaNuvem(aoTerminar) {
-  document.title = 'Nova senha · Caixa da Família';
+  document.title = 'Nova senha · Controle seu caixa';
   app().innerHTML = `
   <main class="grid min-h-dvh place-items-center p-4">
     <div class="w-full max-w-sm animate-entrar">
@@ -168,7 +165,7 @@ export function telaNovaSenhaNuvem(aoTerminar) {
 
 // ---------- Ainda faltam as chaves do Supabase (.env.local ou Secrets do GitHub)
 export function telaSemConfiguracao() {
-  document.title = 'Configuração · Caixa da Família';
+  document.title = 'Configuração · Controle seu caixa';
   app().innerHTML = `
   <main class="grid min-h-dvh place-items-center p-4">
     <div class="w-full max-w-md animate-entrar">

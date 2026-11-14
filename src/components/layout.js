@@ -20,7 +20,7 @@ export function montarLayout() {
     <aside class="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-stone-200 bg-cartao p-4 lg:flex dark:border-stone-800 dark:bg-stone-900">
       <div class="flex items-center gap-3 px-2 pb-6">
         <span class="flex size-10 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white" aria-hidden="true">R$</span>
-        <div class="min-w-0"><p class="font-bold">Caixa da Família</p><p class="truncate text-sm text-stone-600 dark:text-stone-400" data-saudacao>Olá, ${esc(store.usuario)}</p></div>
+        <div class="min-w-0"><p class="font-bold">Controle seu caixa</p><p class="truncate text-sm text-stone-600 dark:text-stone-400" data-saudacao>Olá, ${esc(store.usuario)}</p></div>
       </div>
       <a href="#novo" data-nav="novo" data-anima class="btn-primario mb-4 w-full">${iconeAnimado('mais')} Novo lançamento</a>
       <nav aria-label="Menu principal"><ul class="grid gap-1">

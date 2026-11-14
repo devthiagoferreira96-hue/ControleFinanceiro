@@ -158,7 +158,7 @@ export async function importarDoExcel(aoTerminar) {
     if (!plano.pendentes.length) { area.innerHTML = ''; return; }
     area.innerHTML = `<section class="grid gap-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20" aria-labelledby="titulo-pendencias">
       <h3 id="titulo-pendencias" class="flex items-center gap-2 font-bold text-amber-900 dark:text-amber-100">${icone('alerta', 'size-5 shrink-0')} <span data-titulo-pendencias></span></h3>
-      <p class="text-sm text-amber-900 dark:text-amber-100">A planilha usa nomes que não existem no Caixa da Família. Para cada um, escolha o que fazer. Sem isso não dá para importar (ou apague essas linhas no Excel e importe de novo).</p>
+      <p class="text-sm text-amber-900 dark:text-amber-100">A planilha usa nomes que não existem no Controle seu caixa. Para cada um, escolha o que fazer. Sem isso não dá para importar (ou apague essas linhas no Excel e importe de novo).</p>
       ${plano.pendentes.map((p, i) => {
         const [artigo, , Tipo] = NOMES[p.tipo];
         const nome = p.nome || `(${p.tipo === 'cartao' ? 'cartão' : p.tipo} em branco)`;

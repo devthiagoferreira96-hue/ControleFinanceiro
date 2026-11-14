@@ -1,4 +1,4 @@
-# Caixa da Família
+# Controle seu caixa
 
 Sistema para controlar os gastos da família: entradas e saídas do caixa, contas a pagar, cartões de crédito com parcelas, relatórios e pagamentos de funcionários e prestadores. Ele substitui a planilha `NOVO_CAIXA.xlsx`.
 
