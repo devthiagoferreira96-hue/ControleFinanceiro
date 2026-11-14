@@ -72,7 +72,7 @@ export default {
     <p><strong>Backup e exportar</strong>: escolha entre o <strong>backup completo</strong> (guarda tudo e é o único que restaura os dados), uma <strong>planilha do Excel</strong> ou um <strong>relatório em PDF</strong> do mês, do ano ou de tudo.</p>
     <p><strong>Contas, Cartões, Categorias e Pessoas</strong>: mude qualquer campo e toque em <strong>Salvar</strong> na mesma linha. Para incluir um item novo, use a última linha de cada lista.</p>
     <p><strong>Aparência</strong>: modo claro ou escuro, temas de cores prontos, suas próprias cores e letras maiores.</p>
-    <p><strong>Usuário e senha</strong>: troque seu nome ou sua senha, gere um novo código de recuperação, saia da conta da nuvem neste aparelho ou apague tudo.</p>`,
+    <p><strong>Usuário e senha</strong>: troque seu nome ou sua senha, gere um novo código de recuperação, saia da conta neste aparelho ou apague tudo.</p>`,
 
   async render(el, ctx) {
     el.innerHTML = `
@@ -111,9 +111,9 @@ export default {
           <button type="button" class="btn-neutro" data-tour>${icone('ajuda')} Ver a apresentação de novo</button>
         </div>
         <div class="mt-6 rounded-xl border border-stone-200 p-4 dark:border-stone-700">
-          <p class="font-semibold">Conta na nuvem</p>
-          <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Conectado como <strong>${esc(usuarioNuvem()?.email || '')}</strong>. Os dados são salvos na nuvem a cada mudança. Sair tira os dados só deste aparelho; eles continuam na nuvem.</p>
-          <button type="button" class="btn-neutro mt-3" data-sair-nuvem>${icone('enviar')} Sair da nuvem neste aparelho</button>
+          <p class="font-semibold">Conta</p>
+          <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Conectado como <strong>${esc(usuarioNuvem()?.email || '')}</strong>. Os dados são salvos na nuvem a cada mudança. Sair tira os dados só deste aparelho; eles continuam na nuvem e voltam quando você entrar de novo com o e-mail e a senha.</p>
+          <button type="button" class="btn-neutro mt-3" data-sair-nuvem>${icone('enviar')} Sair desta conta neste aparelho</button>
         </div>
         <div class="mt-6 rounded-xl border border-red-200 p-4 dark:border-red-900">
           <p class="font-semibold text-red-800 dark:text-red-300">Apagar tudo (na nuvem e nos aparelhos)</p>
@@ -187,7 +187,7 @@ export default {
       } else if (e.target.closest('[data-apagar-tudo]')) {
         apagarTudo();
       } else if (e.target.closest('[data-sair-nuvem]')) {
-        if (!(await confirmar('Este aparelho deixa de mostrar os dados até você entrar de novo. Nada é apagado da nuvem.', { titulo: 'Sair da nuvem neste aparelho?', botao: 'Sair' }))) return;
+        if (!(await confirmar('Este aparelho deixa de mostrar os dados até você entrar de novo. Nada é apagado da nuvem.', { titulo: 'Sair desta conta neste aparelho?', botao: 'Sair' }))) return;
         try {
           await local.sairDaNuvem();
           location.hash = '';

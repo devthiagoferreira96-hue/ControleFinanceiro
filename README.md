@@ -2,7 +2,8 @@
 
 Sistema para controlar os gastos da família: entradas e saídas do caixa, contas a pagar, cartões de crédito com parcelas, relatórios e pagamentos de funcionários e prestadores. Ele substitui a planilha `NOVO_CAIXA.xlsx`.
 
-- **Dados na nuvem (Supabase).** Tudo fica salvo na nuvem e aparece no celular e no computador. Você entra com e-mail e senha da nuvem **uma vez em cada aparelho**.
+- **Dados na nuvem (Supabase).** Tudo fica salvo na nuvem e aparece no celular e no computador. Você entra com e-mail e senha **uma vez em cada aparelho**; depois o sistema pede só a senha.
+- **Uma senha só, recuperável pelo código.** A mesma senha abre os dados e a conta na nuvem. Esqueceu? O código de recuperação (mostrado ao criar a conta) cria uma senha nova em qualquer aparelho, sem depender de e-mail.
 - **Cifrado antes de sair do aparelho.** A senha do sistema cifra os dados (AES-256); o Supabase guarda, mas não consegue ler.
 - **Funciona sem internet.** Uma cópia fica no aparelho; o que for feito sem conexão vai para a nuvem quando ela voltar.
 - **Dois aparelhos ao mesmo tempo:** se os dois mudarem algo, as mudanças são juntadas linha por linha (nada se perde).
@@ -20,7 +21,7 @@ Sistema para controlar os gastos da família: entradas e saídas do caixa, conta
 1. Crie um projeto grátis em [supabase.com](https://supabase.com).
 2. Em **SQL Editor > New query**, cole todo o arquivo `supabase/schema.sql` e clique em **Run**. Ele cria a tabela, as regras de segurança (cada um só vê os próprios dados) e o histórico.
 3. Em **Authentication > URL Configuration**, coloque em **Site URL** o endereço do site: `https://devthiagoferreira96-hue.github.io/ControleFinanceiro/` (e o mesmo em *Redirect URLs*). É para onde os links de e-mail (confirmar conta, trocar senha) levam.
-4. Opcional: em **Authentication > Sign In / Providers > Email**, desligue *Confirm email* para entrar sem precisar confirmar o e-mail.
+4. **Obrigatório:** em **Authentication > Sign In / Providers > Email**, desligue *Confirm email*. O sistema não usa e-mails: a recuperação é pelo código.
 5. Em **Project Settings > API**, pegue a **Project URL** e a chave **anon / publishable**. Elas **não ficam no código**:
    - **No computador:** copie `.env.example` para `.env.local` e preencha (o `.env.local` não vai para o GitHub).
    - **No site publicado:** no GitHub, em *Settings > Secrets and variables > Actions > New repository secret*, crie `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`.
@@ -38,7 +39,7 @@ npm run dev
 
 Abra o endereço que aparecer no terminal (normalmente http://localhost:5173).
 
-No primeiro acesso, o sistema pede o **e-mail e a senha da nuvem** (crie a conta ali mesmo) e depois **seu nome** e a **senha do sistema**. Marque *Começar com dados de exemplo* para conhecer o sistema; depois, em *Ajustes > Usuário e senha > Apagar tudo*, dá para começar do zero.
+No primeiro acesso, toque em *Criar conta*: o sistema pede **e-mail** (é o seu login), **nome** e **senha**. Marque *Começar com dados de exemplo* para conhecer o sistema; depois, em *Ajustes > Usuário e senha > Apagar tudo*, dá para começar do zero.
 
 ## 3. Publicar e instalar no celular
 
@@ -67,8 +68,8 @@ Depois de instalado, o sistema abre mesmo sem internet. Quando você publicar um
 - **Perdeu o código?** Em *Ajustes > Usuário e senha > Novo código de recuperação* (pede a senha), o antigo deixa de valer.
 - **Sem a senha e sem o código** não há como abrir os dados: só um backup os traz de volta.
 - **Como funciona por dentro:** os dados são cifrados com uma chave aleatória. Essa chave fica guardada em duas "fechaduras", uma aberta pela senha e outra pelo código. A cifra acontece no aparelho; a nuvem só recebe o resultado cifrado (veja `src/lib/cofre.js`).
-- **Duas senhas:** a da **nuvem** (e-mail + senha, pedida uma vez por aparelho) diz *de quem* são os dados; a do **sistema** (pedida sempre) abre os dados. Esqueceu a da nuvem? *Esqueci a senha da nuvem* manda um link por e-mail. Esqueceu a do sistema? Use o código de recuperação.
-- **Sair da nuvem:** *Ajustes > Usuário e senha > Sair da nuvem neste aparelho* tira os dados só daquele aparelho (útil em computador emprestado).
+- **Uma senha só:** a mesma senha abre os dados e entra na conta (o servidor recebe só uma senha derivada dela, nunca a verdadeira). Esqueceu? *Esqueci minha senha* + o código de recuperação, em qualquer aparelho.
+- **Sair:** *Ajustes > Usuário e senha > Sair desta conta neste aparelho* tira os dados só daquele aparelho (útil em computador emprestado).
 - **Apagar tudo** agora apaga da nuvem e de todos os aparelhos (o histórico do banco ainda guarda as últimas cópias).
 
 ## Casa, Fazenda e tipos de categoria

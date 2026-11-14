@@ -7,6 +7,8 @@
 // Ou seja: o Supabase guarda os dados, mas não consegue lê-los.
 // Conversa com o Supabase direto pela internet (fetch), sem bibliotecas.
 // =====================================================================
+import { normalizarCodigo } from './cofre.js';
+
 // As chaves vêm de variáveis de ambiente (.env.local no computador, Secrets no GitHub), nunca do código.
 const env = import.meta.env || {};
 const URL_BASE = String(env.VITE_SUPABASE_URL || '').trim().replace(/\/+$/, '');
@@ -50,15 +52,14 @@ export const usuarioNuvem = () => sessao?.usuario || null;
 
 // ---------- Pedidos ao Supabase
 const MENSAGENS = [
-  [/invalid login credentials/i, 'E-mail ou senha da nuvem incorretos.'],
-  [/email not confirmed/i, 'Confirme o seu e-mail primeiro: abra a mensagem que enviamos e toque no link.'],
+  [/invalid login credentials/i, 'E-mail ou senha incorretos.'],
+  [/email not confirmed/i, 'Esta conta ainda espera a confirmação do e-mail. No Supabase, desligue "Confirm email" (Authentication > Sign In / Providers > Email).'],
   [/already (been )?registered|already exists/i, 'Já existe uma conta com esse e-mail. Toque em "Entrar".'],
-  [/password should be at least|weak password|at least \d+ characters/i, 'A senha da nuvem precisa ter pelo menos 6 caracteres.'],
   [/invalid email|unable to validate email|email address .* is invalid/i, 'Confira o e-mail digitado.'],
   [/rate limit|too many/i, 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.'],
   [/signups? not allowed|signup is disabled/i, 'O cadastro de contas novas está desligado neste Supabase.'],
   [/same.*password|different from the old/i, 'A senha nova precisa ser diferente da anterior.'],
-  [/relation .*caixa_dados.* does not exist|could not find the (table|function)/i, 'O banco da nuvem ainda não foi preparado (falta rodar o arquivo supabase/schema.sql).'],
+  [/relation .*caixa_(dados|recuperacao).* does not exist|could not find the (table|function)/i, 'O banco da nuvem ainda não foi preparado (falta rodar o arquivo supabase/schema.sql).'],
 ];
 function traduzir(json, status) {
   const original = json?.msg || json?.error_description || json?.message || json?.error || '';
@@ -71,7 +72,8 @@ function traduzir(json, status) {
 async function pedir(caminho, { metodo = 'GET', corpo, comLogin = true, token, cabecalhos = {} } = {}) {
   const h = { apikey: CHAVE, 'Content-Type': 'application/json', ...cabecalhos };
   // sem login, só a chave pública vai no "apikey" (funciona com as chaves antigas e as novas "publishable")
-  const acesso = token || (comLogin ? await tokenValido() : null);
+  // chave antiga (JWT "anon") também vai no Authorization quando não há login
+  const acesso = token || (comLogin ? await tokenValido() : (CHAVE.startsWith('eyJ') ? CHAVE : null));
   if (acesso) h.Authorization = `Bearer ${acesso}`;
   let resp;
   try {
@@ -138,10 +140,7 @@ export async function cadastrar(email, senha) {
   return { confirmar: true };
 }
 
-export const enviarEmailDeSenha = (email) =>
-  pedir(`/auth/v1/recover?redirect_to=${encodeURIComponent(voltarPara())}`, { metodo: 'POST', comLogin: false, corpo: { email } });
-
-export async function trocarSenhaDaNuvem(senha) {
+async function trocarSenhaDaNuvem(senha) {
   await pedir('/auth/v1/user', { metodo: 'PUT', corpo: { password: senha } });
 }
 
@@ -150,30 +149,54 @@ export async function sair() {
   guardarSessao(null);
 }
 
-/**
- * Volta do link do e-mail (confirmar conta ou trocar a senha): o Supabase manda
- * o acesso no endereço (#access_token=...). Guarda a sessão e limpa o endereço.
- * Retorna { tipo } ('signup', 'recovery'...), { erro } ou null.
- */
-export async function lerRetornoDoEmail() {
-  const hash = location.hash.replace(/^#/, '');
-  if (!/(^|&)(access_token|error_description|error)=/.test(hash)) return null;
-  const p = new URLSearchParams(hash);
-  history.replaceState(null, '', location.pathname + location.search);
-  if (p.get('error_description') || p.get('error')) {
-    const msg = (p.get('error_description') || '').replace(/\+/g, ' ');
-    return { erro: /expired|invalid/i.test(msg) ? 'O link do e-mail expirou ou já foi usado. Peça um novo.' : msg || 'Não foi possível usar o link do e-mail.' };
+// ---------- Uma senha só
+// O login da nuvem usa o e-mail e a MESMA senha do sistema. Para o servidor nunca ver a senha
+// verdadeira (que também cifra os dados), ele recebe uma senha derivada dela.
+// O código de recuperação também recupera o acesso: o banco guarda só uma "prova" dele,
+// embaralhada (bcrypt), e com ela troca a senha da nuvem (supabase/schema.sql: recuperar_acesso).
+const codificar = new TextEncoder();
+const emailLimpo = (e) => String(e || '').trim().toLowerCase();
+
+export async function senhaDaNuvem(senha, email) {
+  const base = await crypto.subtle.importKey('raw', codificar.encode(senha), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: codificar.encode(`controle-seu-caixa|${emailLimpo(email)}`), iterations: 210_000, hash: 'SHA-256' },
+    base, 256,
+  );
+  return `cx1.${paraBase64(new Uint8Array(bits)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}`;
+}
+
+async function provaDoCodigo(codigo, email) {
+  const h = await crypto.subtle.digest('SHA-256', codificar.encode(`recuperacao|${emailLimpo(email)}|${normalizarCodigo(codigo)}`));
+  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export const entrarComSenha = async (email, senha) => entrar(emailLimpo(email), await senhaDaNuvem(senha, email));
+export const cadastrarComSenha = async (email, senha) => cadastrar(emailLimpo(email), await senhaDaNuvem(senha, email));
+
+/** Troca a senha da nuvem para acompanhar a senha nova do sistema */
+export async function definirSenha(senha) {
+  if (!logado()) return;
+  try {
+    await trocarSenhaDaNuvem(await senhaDaNuvem(senha, sessao.usuario.email));
+  } catch (e) {
+    if (e.status !== 422) throw e; // 422 = já era essa senha (ex.: logo depois de recuperar o acesso)
   }
-  const token = p.get('access_token');
-  const user = await pedir('/auth/v1/user', { token });
-  guardarSessao({
-    access_token: token,
-    refresh_token: p.get('refresh_token'),
-    expires_at: p.get('expires_at'),
-    expires_in: p.get('expires_in'),
-    user,
+}
+
+/** Guarda na nuvem a prova do código de recuperação (para recuperar em outro aparelho) */
+export async function salvarRecuperacao(codigo) {
+  if (!logado()) return;
+  await pedir('/rest/v1/rpc/salvar_recuperacao', { metodo: 'POST', corpo: { p_prova: await provaDoCodigo(codigo, sessao.usuario.email) } });
+}
+
+/** Esqueci a senha (sem estar conectado): com o código, cria a senha nova da nuvem. true = deu certo */
+export async function recuperarAcesso(email, codigo, senhaNova) {
+  const ok = await pedir('/rest/v1/rpc/recuperar_acesso', {
+    metodo: 'POST', comLogin: false,
+    corpo: { p_email: emailLimpo(email), p_prova: await provaDoCodigo(codigo, email), p_nova_senha: await senhaDaNuvem(senhaNova, email) },
   });
-  return { tipo: p.get('type') || 'signup' };
+  return ok === true;
 }
 
 // ---------- Dados (tabela caixa_dados: uma linha "conta" e uma "dados" por usuário)

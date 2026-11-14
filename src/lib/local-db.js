@@ -206,6 +206,9 @@ export const local = {
     marcaAtual = marcaDe(dados);
     pedirArmazenamentoPersistente();
     await sincronizar();
+    // o código também recupera o acesso à nuvem (em qualquer aparelho)
+    await nuvem.salvarRecuperacao(codigo).catch((e) => console.error('Não foi possível guardar o código na nuvem', e));
+    lembrarSenhaUnica();
     return codigo;
   },
 
@@ -220,6 +223,8 @@ export const local = {
     const bytes = await abrirFechadura(conta.senha, senha);
     if (!bytes) return { ok: false };
     await entrarComChave(conta, bytes);
+    // contas da versão com duas senhas: a da nuvem passa a ser a mesma do sistema
+    if (!senhaUnicaOk()) nuvem.definirSenha(senha).then(lembrarSenhaUnica).catch(() => {});
     return { ok: true };
   },
 
@@ -234,6 +239,10 @@ export const local = {
     if (!bytes) return null;
     await entrarComChave(conta, bytes);
     const novo = gerarCodigoRecuperacao();
+    // a nuvem acompanha: senha nova e código novo (precisa de internet)
+    await nuvem.definirSenha(senhaNova);
+    await nuvem.salvarRecuperacao(novo);
+    lembrarSenhaUnica();
     conta.senha = await fechadura(senhaNova);
     conta.recuperacao = await fechadura(normalizarCodigo(novo));
     await gravarConta(conta);
@@ -251,6 +260,7 @@ export const local = {
     const conta = await armazenamento.ler('conta');
     if (senhaNova) {
       if (!(await abrirFechadura(conta.senha, senhaAtual))) throw new Error('A senha atual está incorreta.');
+      await nuvem.definirSenha(senhaNova); // a mesma senha entra na nuvem (precisa de internet)
       conta.senha = await fechadura(senhaNova);
     }
     if (usuario) conta.usuario = usuario;
@@ -263,6 +273,7 @@ export const local = {
     const conta = await armazenamento.ler('conta');
     if (!(await abrirFechadura(conta.senha, senhaAtual))) throw new Error('A senha está incorreta.');
     const codigo = gerarCodigoRecuperacao();
+    await nuvem.salvarRecuperacao(codigo); // o código novo também recupera o acesso à nuvem
     conta.recuperacao = await fechadura(normalizarCodigo(codigo));
     await gravarConta(conta);
     return codigo;
@@ -379,6 +390,11 @@ async function migrarVersaoAnterior(conta, senha) {
   agendarEnvio();
   return { ok: true, codigoNovo: codigo };
 }
+
+// Marca (por conta da nuvem) que a senha da nuvem já é a mesma do sistema
+const MARCA_SENHA = 'caixa-senha-unica';
+const senhaUnicaOk = () => { try { return localStorage.getItem(MARCA_SENHA) === nuvem.usuarioNuvem()?.id; } catch { return true; } };
+const lembrarSenhaUnica = () => { try { localStorage.setItem(MARCA_SENHA, nuvem.usuarioNuvem()?.id || ''); } catch { /* tanto faz */ } };
 
 // Pede ao navegador para não apagar os dados do site quando faltar espaço
 function pedirArmazenamentoPersistente() {

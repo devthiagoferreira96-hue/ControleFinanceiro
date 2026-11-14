@@ -131,3 +131,70 @@ drop trigger if exists caixa_dados_historico on public.caixa_dados;
 create trigger caixa_dados_historico
   after update or delete on public.caixa_dados
   for each row execute function public.guardar_historico();
+
+-- ---------------------------------------------------------------------
+-- Recuperação com o código (uma senha só)
+-- O login da nuvem usa o e-mail e uma senha derivada da senha do sistema.
+-- Quem esqueceu a senha recupera tudo com o código de recuperação: o banco guarda
+-- só uma prova embaralhada do código (bcrypt) e, se ela confere, troca a senha da nuvem.
+-- ---------------------------------------------------------------------
+create extension if not exists pgcrypto with schema extensions;
+
+create table if not exists public.caixa_recuperacao (
+  user_id uuid primary key references auth.users (id) on delete cascade,
+  verificador text not null,
+  atualizado_em timestamptz not null default now()
+);
+alter table public.caixa_recuperacao enable row level security;
+-- sem políticas: ninguém lê nem grava direto; só pelas funções abaixo
+revoke all on public.caixa_recuperacao from anon, authenticated;
+
+create or replace function public.salvar_recuperacao(p_prova text)
+returns void
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'É preciso entrar na conta';
+  end if;
+  if length(coalesce(p_prova, '')) <> 64 then
+    raise exception 'Prova inválida';
+  end if;
+  insert into public.caixa_recuperacao (user_id, verificador)
+  values (auth.uid(), extensions.crypt(p_prova, extensions.gen_salt('bf', 10)))
+  on conflict (user_id) do update set verificador = excluded.verificador, atualizado_em = now();
+end;
+$$;
+revoke all on function public.salvar_recuperacao(text) from public, anon;
+grant execute on function public.salvar_recuperacao(text) to authenticated;
+
+create or replace function public.recuperar_acesso(p_email text, p_prova text, p_nova_senha text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
+declare
+  v_id uuid;
+  v_verificador text;
+begin
+  if length(coalesce(p_nova_senha, '')) < 20 or length(coalesce(p_prova, '')) <> 64 then
+    return false;
+  end if;
+  select id into v_id from auth.users where lower(email) = lower(trim(p_email)) limit 1;
+  select verificador into v_verificador from public.caixa_recuperacao where user_id = v_id;
+  if v_id is null or v_verificador is null or extensions.crypt(p_prova, v_verificador) <> v_verificador then
+    perform pg_sleep(0.5); -- deixa mais lento quem tenta adivinhar
+    return false;
+  end if;
+  update auth.users
+     set encrypted_password = extensions.crypt(p_nova_senha, extensions.gen_salt('bf', 10)),
+         updated_at = now()
+   where id = v_id;
+  return true;
+end;
+$$;
+revoke all on function public.recuperar_acesso(text, text, text) from public;
+grant execute on function public.recuperar_acesso(text, text, text) to anon, authenticated;

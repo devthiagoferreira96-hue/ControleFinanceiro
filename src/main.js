@@ -5,11 +5,12 @@ import { store } from './lib/store.js';
 import { carregarCadastros } from './lib/api.js';
 import { local } from './lib/local-db.js';
 import { aplicarPreferencias } from './lib/preferencias.js';
-import { telaPrimeiroAcesso, telaSenha } from './pages/acesso.js';
+import { telaPrimeiroAcesso, telaSenha, telaEntrar } from './pages/acesso.js';
 import { iniciarApp, redesenharSeSeguro } from './router.js';
 import { toast } from './lib/ui.js';
 import * as nuvem from './lib/nuvem.js';
-import { telaNuvem, telaNovaSenhaNuvem, telaSemConfiguracao, telaCarregando } from './pages/nuvem.js';
+import { telaSemConfiguracao, telaCarregando } from './pages/nuvem.js';
+import { mostrarCodigoRecuperacao } from './components/recuperacao.js';
 
 aplicarPreferencias();
 
@@ -20,21 +21,45 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
 
 async function iniciar() {
   if (!nuvem.configurada()) return telaSemConfiguracao();
-  // voltou pelo link do e-mail (confirmar a conta ou trocar a senha da nuvem)
-  const retorno = await nuvem.lerRetornoDoEmail().catch((e) => ({ erro: e.message }));
-  if (retorno?.tipo === 'recovery') return telaNovaSenhaNuvem(depoisDaNuvem);
-  if (!nuvem.logado()) return telaNuvem(depoisDaNuvem, { aviso: retorno?.erro || '' });
-  if (retorno?.tipo) toast('E-mail confirmado. Conta da nuvem pronta.');
-  return depoisDaNuvem();
-}
-
-/** Já conectado à nuvem: traz os dados e segue o fluxo de sempre (senha do sistema) */
-async function depoisDaNuvem() {
+  if (!nuvem.logado()) return mostrarEntrar();
+  // aparelho já conectado: traz os dados e pede só a senha
   telaCarregando();
   await local.conectarNuvem();
   const usuario = await local.usuarioCadastrado();
   if (usuario) telaSenha(usuario, abrirSistema);
-  else telaPrimeiroAcesso(abrirSistema);
+  else telaPrimeiroAcesso(abrirSistema, null, { conectado: true });
+}
+
+function mostrarEntrar(email = '') {
+  telaEntrar(conectado, (em) => telaPrimeiroAcesso(abrirSistema, null, { email: em, aoVoltar: mostrarEntrar }), { email });
+}
+
+/**
+ * Acabou de entrar (e-mail + senha): traz os dados e abre direto, sem pedir a senha de novo.
+ * `codigo` vem quando a pessoa entrou pelo "Esqueci minha senha".
+ */
+async function conectado(senha, { codigo } = {}) {
+  telaCarregando();
+  await local.conectarNuvem();
+  const usuario = await local.usuarioCadastrado();
+  if (!usuario) return telaPrimeiroAcesso(abrirSistema, null, { conectado: true });
+  if (codigo) {
+    try {
+      const novo = await local.recuperarComCodigo(codigo, senha);
+      if (novo) {
+        await mostrarCodigoRecuperacao(novo, { motivo: 'recuperado' });
+        toast('Senha nova criada. Ela vale em todos os aparelhos.');
+        return abrirSistema();
+      }
+    } catch (e) {
+      toast(e.message, { tipo: 'erro' });
+    }
+    return telaSenha(usuario, abrirSistema);
+  }
+  const r = await local.desbloquear(senha);
+  if (!r.ok) return telaSenha(usuario, abrirSistema);
+  if (r.codigoNovo) await mostrarCodigoRecuperacao(r.codigoNovo, { motivo: 'atualizacao' });
+  abrirSistema();
 }
 
 async function abrirSistema() {
@@ -77,7 +102,7 @@ window.addEventListener('caixa:erro-gravar', () => {
 
 // Sessão da nuvem terminou (senha trocada em outro lugar, por exemplo): pede para entrar de novo
 window.addEventListener('caixa:nuvem-saiu', () => {
-  toast('Sua sessão na nuvem terminou. Entre de novo para continuar salvando na nuvem.', { tipo: 'erro' });
+  toast('Sua sessão terminou. Entre de novo com o seu e-mail e senha para continuar salvando na nuvem.', { tipo: 'erro' });
 });
 // Os dados foram apagados (ou o acesso recriado) em outro aparelho
 window.addEventListener('caixa:apagado-na-nuvem', () => {
