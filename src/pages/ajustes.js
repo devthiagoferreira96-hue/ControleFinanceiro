@@ -281,7 +281,7 @@ function lerLinha(form, def) {
 
 function trocarSenha() {
   const campo = (id, rotulo, auto) => `<div data-campo><label class="rotulo" for="${id}">${rotulo}</label>
-    <input id="${id}" name="${id}" type="password" class="campo" autocomplete="${auto}" maxlength="64"></div>`;
+    <input id="${id}" name="${id}" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" class="campo" autocomplete="${auto}" maxlength="64"></div>`;
   const d = dialogo({
     titulo: 'Trocar a senha',
     largura: 'max-w-sm',
@@ -321,7 +321,7 @@ function novoCodigo() {
     corpo: `<form class="grid gap-4" novalidate>
       <p class="text-stone-700 dark:text-stone-300">O código atual vai <strong>parar de funcionar</strong> e você vai receber um novo para guardar.</p>
       <div data-campo><label class="rotulo" for="senha-codigo">Digite sua senha para confirmar</label>
-      <input id="senha-codigo" name="senha" type="password" class="campo" autocomplete="current-password" maxlength="64"></div>
+      <input id="senha-codigo" name="senha" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" class="campo" autocomplete="current-password" maxlength="64"></div>
       <button type="submit" class="btn-primario">Gerar código novo</button></form>`,
   });
   const f = d.querySelector('form');

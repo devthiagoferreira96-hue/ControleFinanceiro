@@ -3,14 +3,20 @@ import { esc, hojeISO, valorParaCampo, lerValor, VALOR_MAXIMO, valorMaximoTexto 
 import { store, contasAtivas, categoriasPorGrupo, buscar, categoriaServe } from '../lib/store.js';
 import { erroNoCampo } from '../lib/ui.js';
 
+/**
+ * Opções agrupadas sem <optgroup>: no Android o nome do grupo fica desalinhado das opções.
+ * O grupo vira uma linha de título (desativada, não dá para escolher), alinhada com as categorias.
+ */
+export const opcoesAgrupadas = (grupos, selecionada) =>
+  Object.entries(grupos)
+    .map(([grupo, cats]) => `<option value="" disabled>── ${esc(grupo)} ──</option>${cats
+      .map((c) => `<option value="${c.id}" ${String(c.id) === String(selecionada ?? '') ? 'selected' : ''}>${esc(c.nome)}</option>`)
+      .join('')}`)
+    .join('');
+
 /** Opções do campo Categoria. Com `tipo`, só as categorias que servem para ele (e sempre a já escolhida). */
 export const opcoesCategoria = (selecionada, tipo) =>
-  `<option value="">Escolha uma categoria…</option>` +
-  Object.entries(categoriasPorGrupo(tipo, selecionada))
-    .map(([grupo, cats]) => `<optgroup label="${esc(grupo)}">${cats
-      .map((c) => `<option value="${c.id}" ${c.id === selecionada ? 'selected' : ''}>${esc(c.nome)}</option>`)
-      .join('')}</optgroup>`)
-    .join('');
+  `<option value="">Escolha uma categoria…</option>` + opcoesAgrupadas(categoriasPorGrupo(tipo, selecionada), selecionada);
 
 export const opcoesConta = (selecionada) =>
   contasAtivas().map((c) => `<option value="${c.id}" ${c.id === selecionada ? 'selected' : ''}>${esc(c.nome)}</option>`).join('');

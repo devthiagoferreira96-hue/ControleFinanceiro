@@ -1,6 +1,7 @@
 // Extrato do mês: todos os lançamentos do caixa, com busca e filtros
 import { brl, esc, dataPorExtenso } from '../lib/format.js';
 import { contasAtivas, categoriasPorGrupo } from '../lib/store.js';
+import { opcoesAgrupadas } from '../components/form-lancamento.js';
 import { lancamentosDoMes } from '../lib/api.js';
 import { saidasReais, entradas, somar } from '../lib/calculos.js';
 import { itemLancamento, cliqueEmLancamento } from '../components/lancamento.js';
@@ -34,7 +35,7 @@ export default {
             ${contasAtivas().map((c) => `<option value="${c.id}" ${String(c.id) === filtros.conta ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</select></div>
           <div><label for="f-f-cat" class="sr-only">Filtrar por categoria</label>
             <select id="f-f-cat" data-filtro="categoria" class="campo"><option value="">Todas as categorias</option>
-            ${Object.entries(categoriasPorGrupo()).map(([g, cs]) => `<optgroup label="${esc(g)}">${cs.map((c) => `<option value="${c.id}" ${String(c.id) === filtros.categoria ? 'selected' : ''}>${esc(c.nome)}</option>`).join('')}</optgroup>`).join('')}</select></div>
+            ${opcoesAgrupadas(categoriasPorGrupo(), filtros.categoria)}</select></div>
           <div><label for="f-f-sit" class="sr-only">Filtrar por situação</label>
             <select id="f-f-sit" data-filtro="situacao" class="campo">
               ${[['', 'Pagos e em aberto'], ['aberto', 'Só em aberto'], ['pago', 'Só pagos'], ['entrada', 'Só entradas'], ['saida', 'Só saídas']]

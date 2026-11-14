@@ -17,7 +17,7 @@ const emailValido = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 const campoEmail = (valor = '') => `
   <div data-campo>
     <label class="rotulo" for="email">E-mail</label>
-    <input id="email" name="email" type="email" class="campo" autocomplete="username" inputmode="email" maxlength="120" placeholder="voce@exemplo.com" value="${esc(valor)}">
+    <input id="email" name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" class="campo" autocomplete="username" inputmode="email" maxlength="120" placeholder="voce@exemplo.com" value="${esc(valor)}">
   </div>`;
 const linkTexto = (atributo, texto, forte = false) =>
   `<button type="button" ${atributo} class="cursor-pointer p-2 text-sm ${forte ? 'font-semibold text-brand-700 dark:text-brand-400' : 'text-stone-600 dark:text-stone-400'} underline underline-offset-2">${texto}</button>`;
@@ -39,7 +39,7 @@ const campoSenha = (id, rotulo, autocomplete, dica = '') => `
   <div data-campo>
     <label class="rotulo" for="${id}">${rotulo}</label>
     <div class="relative">
-      <input id="${id}" name="${id}" type="password" class="campo pr-12" autocomplete="${autocomplete}" maxlength="64" ${dica ? `aria-describedby="dica-${id}"` : ''}>
+      <input id="${id}" name="${id}" type="password" autocapitalize="none" autocorrect="off" spellcheck="false" class="campo pr-12" autocomplete="${autocomplete}" maxlength="64" ${dica ? `aria-describedby="dica-${id}"` : ''}>
       <button type="button" data-ver="${id}" class="btn-icone absolute inset-y-0 right-0" aria-label="Mostrar senha" aria-pressed="false">${icone('olho')}</button>
     </div>
     ${dica ? `<p id="dica-${id}" class="dica">${dica}</p>` : ''}

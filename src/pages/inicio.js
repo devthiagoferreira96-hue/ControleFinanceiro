@@ -1,5 +1,5 @@
 // Tela inicial: saldos, resumo do mês, contas a pagar, faturas e gráfico por categoria
-import { brl, brlCurto, esc, mesISO, somarDias, nomeMes } from '../lib/format.js';
+import { brl, brlCurto, esc, mesISO, somarDias, nomeMes, hojeISO, toISO } from '../lib/format.js';
 import { store, contasAtivas, cartoesAtivos, areaDaCategoria, GRUPOS_SEPARADOS } from '../lib/store.js';
 import { saldosContas, lancamentosDoMes, parcelasDoMes, pendentesAte, pagamentosDeFatura } from '../lib/api.js';
 import { gastosPorCategoria, totalDoCartao, resumoPorArea, entradasPorCategoria } from '../lib/calculos.js';
@@ -14,7 +14,7 @@ export default {
   titulo: 'Início',
   usaMes: true,
   ajuda: `
-    <p><strong>Saldo total</strong>: quanto vocês têm somando todas as contas. Só conta o que já foi pago ou recebido.</p>
+    <p><strong>Saldo total</strong>: quanto vocês têm somando todas as contas. Só conta o que já foi pago ou recebido. Num mês que já passou, mostra o saldo no último dia daquele mês.</p>
     <p><strong>Resumo da casa</strong>: o que entrou e o que saiu no mês escolhido no topo (gastos do caixa + parcelas dos cartões), <strong>sem</strong> as categorias dos grupos Fazenda e Empresa. Embaixo aparece o resultado geral, somando tudo.</p>
     <p><strong>Fazenda</strong>: vendas menos despesas da fazenda no mês, mostrando se deu lucro ou prejuízo. A Empresa ganha um quadro igual quando tiver lançamentos no mês.</p>
     <p><strong>Contas a pagar</strong>: o que está atrasado ou vence nos próximos 7 dias. Quando pagar, toque no círculo.</p>
@@ -22,8 +22,14 @@ export default {
     <p><strong>Gastos por categoria</strong>: toque numa barra para ver tudo o que foi gasto naquela categoria.</p>`,
 
   async render(el, ctx) {
-    const [saldos, lancamentos, parcelas, pendentes, pagamentos] = await Promise.all([
-      saldosContas(),
+    // Mês que já terminou: saldo no último dia dele. Mês atual ou futuro: saldo de hoje.
+    const ultimo = new Date(`${mesISO(store.mes, 1)}T12:00:00`);
+    ultimo.setDate(0); // dia 0 do mês seguinte = último dia deste mês
+    const fimDoMes = toISO(ultimo);
+    const mesPassado = fimDoMes < hojeISO();
+    const [saldos, saldosHoje, lancamentos, parcelas, pendentes, pagamentos] = await Promise.all([
+      saldosContas(mesPassado ? fimDoMes : null),
+      mesPassado ? saldosContas() : null,
       lancamentosDoMes(),
       parcelasDoMes(),
       pendentesAte(somarDias(7)),
@@ -49,8 +55,10 @@ export default {
     <div class="grid items-start gap-4 lg:grid-cols-[1.3fr_1fr] animate-entrar">
       <div class="grid gap-4">
         <section class="card" aria-labelledby="t-saldo">
-          <h2 id="t-saldo" class="card-titulo">Saldo total hoje</h2>
+          <h2 id="t-saldo" class="card-titulo">${mesPassado ? `Saldo no fim de ${esc(nomeMes(store.mes).toLowerCase())}` : 'Saldo total hoje'}</h2>
           <p class="text-2xl font-bold tabular-nums sm:text-3xl ${total < 0 ? 'valor-saida' : ''}">${brl(total)}</p>
+          ${mesPassado ? `<p class="mt-1 text-sm text-stone-600 dark:text-stone-400">Hoje: <strong class="tabular-nums">${brl(contas.reduce((s, c) => s + (saldosHoje.get(c.id) || 0), 0))}</strong></p>`
+            : mesISO(store.mes) > hojeISO() ? '<p class="mt-1 text-sm text-stone-600 dark:text-stone-400">É o saldo de hoje; os meses seguintes ainda não aconteceram.</p>' : ''}
           <ul class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
             ${contas.map((c) => {
               const v = saldos.get(c.id) || 0;

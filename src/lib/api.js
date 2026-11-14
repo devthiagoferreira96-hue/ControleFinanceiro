@@ -161,9 +161,13 @@ export async function excluirLancamentos(ids) {
 export const lancamentosDoGrupo = async (grupo, aPartirDe) =>
   ok(await local.from('lancamentos').select('*').eq('grupo', grupo).gte('vencimento', aPartirDe));
 
-/** Saldo de cada conta: saldo inicial + entradas pagas − saídas pagas. Retorna Map(conta_id → saldo) */
-export async function saldosContas() {
-  const pagos = ok(await local.from('lancamentos').select('*').eq('pago', true));
+/**
+ * Saldo de cada conta: saldo inicial + entradas pagas − saídas pagas. Retorna Map(conta_id → saldo)
+ * Com `ate` ("aaaa-mm-dd"), só conta o que foi pago até essa data (saldo no fim de um mês passado).
+ */
+export async function saldosContas(ate = null) {
+  let pagos = ok(await local.from('lancamentos').select('*').eq('pago', true));
+  if (ate) pagos = pagos.filter((l) => (l.data_pagamento || l.vencimento) <= ate);
   const saldos = new Map(store.contas.map((c) => [c.id, Number(c.saldo_inicial || 0)]));
   for (const l of pagos) {
     if (saldos.has(l.conta_id)) saldos.set(l.conta_id, saldos.get(l.conta_id) + (l.tipo === 'entrada' ? 1 : -1) * Number(l.valor));
