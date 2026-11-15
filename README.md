@@ -5,7 +5,7 @@ Sistema para controlar os gastos da família: entradas e saídas do caixa, conta
 - **Dados na nuvem (Supabase).** Tudo fica salvo na nuvem e aparece no celular e no computador. Você entra com e-mail e senha **uma vez em cada aparelho**; depois o sistema pede só a senha.
 - **Uma senha só, recuperável pelo código.** A mesma senha abre os dados e a conta na nuvem. Esqueceu? O código de recuperação (mostrado ao criar a conta) cria uma senha nova em qualquer aparelho, sem depender de e-mail.
 - **Cifrado antes de sair do aparelho.** A senha do sistema cifra os dados (AES-256); o Supabase guarda, mas não consegue ler.
-- **Funciona sem internet.** Uma cópia fica no aparelho; o que for feito sem conexão vai para a nuvem quando ela voltar.
+- **Funciona sem internet.** Num aparelho que já entrou na conta uma vez, o sistema abre, pede a senha e deixa cadastrar tudo offline (aparece "Offline" no topo). Quando a internet volta, envia sozinho para a nuvem e avisa.
 - **Dois aparelhos ao mesmo tempo:** se os dois mudarem algo, as mudanças são juntadas linha por linha (nada se perde).
 - **Histórico na nuvem:** o banco guarda cópias anteriores (até ~1 mês) para recuperar em caso de acidente.
 - **Excel em formato de tabela:** a exportação traz abas com uma linha de títulos e um registro por linha (Entrada e Saída em colunas), além de "Categorias por mês" (cada categoria numa coluna). A importação reconhece as colunas por palavras-chave (Data, Descrição, Categoria, Entrada, Saída, Valor, Tipo, Conta, Cartão...), então aceita planilhas de outros sistemas.

@@ -66,6 +66,7 @@ async function abrirSistema() {
   store.usuario = local.usuario;
   await carregarCadastros();
   iniciarApp();
+  local.sincronizar(); // mostra "Offline" no topo, se for o caso, e envia o que estiver pendente
 }
 
 /** Bloqueia o sistema: esquece a chave da memória e volta para a tela de senha */
@@ -109,18 +110,19 @@ window.addEventListener('caixa:apagado-na-nuvem', () => {
   location.hash = '';
   location.reload();
 });
-// Sem internet com mudanças guardadas só aqui / internet de volta
+// Sem internet: mostra "Offline" no topo e avisa que o que for feito fica guardado no aparelho.
+// Quando a internet volta e tudo sobe para a nuvem, avisa que foi salvo.
 let avisouSemInternet = false;
-window.addEventListener('caixa:nuvem-estado', async (e) => {
+window.addEventListener('caixa:nuvem-estado', (e) => {
+  const { offline, pendentes } = e.detail;
+  document.getElementById('status-nuvem')?.classList.toggle('hidden', !offline);
   if (!store.usuario) return;
-  if (e.detail.offline) {
-    if (!avisouSemInternet && (await local.temPendencias())) {
-      avisouSemInternet = true;
-      toast('Sem internet: as mudanças ficam guardadas neste aparelho e vão para a nuvem quando a conexão voltar.');
-    }
-  } else if (avisouSemInternet) {
+  if (offline && pendentes && !avisouSemInternet) {
+    avisouSemInternet = true;
+    toast('Sem internet: o que você cadastrar fica salvo neste aparelho e vai para a nuvem quando a conexão voltar.');
+  } else if (!offline && !pendentes && avisouSemInternet) {
     avisouSemInternet = false;
-    toast('Conexão de volta: dados salvos na nuvem.');
+    toast('Internet de volta: tudo o que foi feito offline foi salvo na nuvem.');
   }
 });
 

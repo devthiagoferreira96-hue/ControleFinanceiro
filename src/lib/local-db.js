@@ -426,17 +426,21 @@ function agendarEnvio() {
   timerEnvio = setTimeout(() => sincronizar(), 800);
 }
 
-// Estado mostrado ao usuário (só avisa quando muda de "sem internet" para "enviado")
-let semInternet = false;
-function estado(offline) {
-  if (offline === semInternet) return;
-  semInternet = offline;
-  window.dispatchEvent(new CustomEvent('caixa:nuvem-estado', { detail: { offline } }));
+// Avisa as telas como está a ligação com a nuvem: { offline, pendentes }
+// (pendentes = há mudanças feitas neste aparelho que ainda não chegaram na nuvem)
+async function estado(offline) {
+  const m = await lerSync().catch(() => syncVazio());
+  window.dispatchEvent(new CustomEvent('caixa:nuvem-estado', {
+    detail: { offline, pendentes: Boolean(m.pendente.conta || m.pendente.dados) },
+  }));
 }
 
 /** Leva e traz as mudanças entre o aparelho e a nuvem */
 function sincronizar() {
   if (!nuvem.configurada() || !nuvem.logado()) return Promise.resolve();
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    return estado(true); // sem internet: nem tenta (as mudanças já estão guardadas no aparelho)
+  }
   return naFila(sincronizarAgora).catch((e) => {
     if (e?.offline) return estado(true);
     if (e?.semSessao) return;
@@ -586,6 +590,7 @@ async function sincronizarDados(m, versaoNuvem) {
 // Confere a nuvem de tempos em tempos enquanto o app está aberto, e quando a internet volta
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => sincronizar());
+  window.addEventListener('offline', () => estado(true));
   setInterval(() => {
     if (document.visibilityState === 'visible') sincronizar();
   }, 20_000);

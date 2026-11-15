@@ -33,6 +33,7 @@ export function montarLayout() {
       <header class="sticky top-0 z-20 border-b border-transparent bg-fundo/90 pt-[env(safe-area-inset-top)] backdrop-blur dark:bg-stone-950/90">
         <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-2 gap-y-1 px-4 py-3 lg:px-8 lg:py-5">
           <h1 id="titulo-pagina" tabindex="-1" class="min-w-0 flex-1 truncate text-xl font-bold outline-none lg:text-2xl"></h1>
+          <span id="status-nuvem" role="status" class="hidden shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 dark:bg-amber-900/50 dark:text-amber-100" title="Sem internet. O que você fizer fica salvo neste aparelho e vai para a nuvem quando a conexão voltar.">Offline</span>
           <div id="seletor-mes" class="order-last w-full sm:order-none sm:w-auto"></div>
           <button type="button" id="btn-ajuda" data-anima class="btn-icone" aria-label="Ajuda desta tela" title="Ajuda desta tela">${iconeAnimado('ajuda')}</button>
           <a href="#ajustes" data-anima class="btn-icone lg:hidden" aria-label="Ajustes" title="Ajustes">${iconeAnimado('ajustes')}</a>
