@@ -6,7 +6,7 @@
 // próxima vez que o sistema for aberto.
 // =====================================================================
 const PREFIXO = 'controle-financeiro-';
-const CACHE = `${PREFIXO}v1`;
+const CACHE = `${PREFIXO}v2`;
 const BASICOS = ['./', './index.html', './manifest.webmanifest', './icon.svg', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', (e) => {

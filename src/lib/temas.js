@@ -4,23 +4,23 @@
 
 /** Temas prontos */
 export const PALETAS = {
-  verde: {
-    nome: 'Verde Cofre',
-    cores: { principal: '#1F6F54', destaque: '#5FB88A', fundo: '#F6FBF7', cartao: '#FFFFFF', texto: '#0E3B2E' },
-    amostra: ['#0E3B2E', '#1F6F54', '#5FB88A', '#D7E7DD', '#F6FBF7'],
+  roxo: {
+    nome: 'Roxo Ametista',
+    cores: { principal: '#5B3FA8', destaque: '#8B6FD6', fundo: '#F7F5FC', cartao: '#FFFFFF', texto: '#22184A' },
+    amostra: ['#22184A', '#5B3FA8', '#8B6FD6', '#E4DDF5', '#F7F5FC'],
   },
-  navy: {
-    nome: 'Azul Navy Contábil',
-    cores: { principal: '#123A63', destaque: '#2F5D8C', fundo: '#F2F5F8', cartao: '#C9D6E5', texto: '#0B1F3B' },
-    amostra: ['#0B1F3B', '#123A63', '#2F5D8C', '#C9D6E5', '#F2F5F8'],
+  petroleo: {
+    nome: 'Azul Petróleo',
+    cores: { principal: '#0F5E73', destaque: '#3A9BB0', fundo: '#F3F8FA', cartao: '#FFFFFF', texto: '#0B2E38' },
+    amostra: ['#0B2E38', '#0F5E73', '#3A9BB0', '#D3E6EC', '#F3F8FA'],
   },
-  cobre: {
-    nome: 'Neutros com toque de cobre',
-    cores: { principal: '#B87333', destaque: '#B87333', fundo: '#F5F6F8', cartao: '#FFFFFF', texto: '#0F172A' },
-    amostra: ['#0F172A', '#4B5563', '#B87333', '#E5E7EB', '#FFFFFF'],
+  vinho: {
+    nome: 'Vinho e Areia',
+    cores: { principal: '#7A2840', destaque: '#C2677F', fundo: '#FBF7F4', cartao: '#FFFFFF', texto: '#3A1420' },
+    amostra: ['#3A1420', '#7A2840', '#C2677F', '#EFDCD6', '#FBF7F4'],
   },
 };
-export const PALETA_PADRAO = 'verde';
+export const PALETA_PADRAO = 'roxo';
 
 /** O que cada cor muda (para o painel personalizado) */
 export const PAPEIS = [
@@ -174,6 +174,6 @@ export function aplicarTema(cores) {
 const HEX = /^#[0-9a-f]{6}$/i;
 /** As 5 cores das preferências (tema pronto ou personalizado), sempre válidas */
 export function coresDasPreferencias(p) {
-  if (p.paleta === 'personalizada' && p.cores && Object.keys(PALETAS.verde.cores).every((k) => HEX.test(p.cores[k] || ''))) return p.cores;
+  if (p.paleta === 'personalizada' && p.cores && Object.keys(PALETAS[PALETA_PADRAO].cores).every((k) => HEX.test(p.cores[k] || ''))) return p.cores;
   return (PALETAS[p.paleta] || PALETAS[PALETA_PADRAO]).cores;
 }

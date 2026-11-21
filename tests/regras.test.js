@@ -66,12 +66,13 @@ for (const [id,pal] of Object.entries(PALETAS)) {
   t(`${id}: texto de apoio legível no quadro`,contraste(variaveis['--color-stone-600'],pal.cores.cartao)>=4.5,true);
   t(`${id}: saída legível no quadro`,contraste(variaveis['--color-saida'],pal.cores.cartao)>=4.5,true);
 }
-t('verde: sem avisos',calcularTema(PALETAS.verde.cores).avisos.length,0);
-t('navy: mantém as cores pedidas',calcularTema(PALETAS.navy.cores).variaveis['--color-brand-600'],'#123A63');
-t('cobre: avisa que escureceu o botão',calcularTema(PALETAS.cobre.cores).avisos.length,1);
+t('roxo: sem avisos',calcularTema(PALETAS.roxo.cores).avisos.length,0);
+t('petróleo: mantém as cores pedidas',calcularTema(PALETAS.petroleo.cores).variaveis['--color-brand-600'],'#0F5E73');
+t('vinho: sem avisos',calcularTema(PALETAS.vinho.cores).avisos.length,0);
+t('cor clara demais: avisa que escureceu o botão',calcularTema({...PALETAS.roxo.cores,principal:'#B87333'}).avisos.length,1);
 const ruim=calcularTema({principal:'#FFFF00',destaque:'#FFFF00',fundo:'#FFFFFF',cartao:'#FFFFFF',texto:'#FFFFFF'});
 t('cores ruins: texto ajustado',contraste(ruim.variaveis['--color-texto'],'#FFFFFF')>=4.5,true);
 t('cores ruins: avisos',ruim.avisos.length,3);
-t('preferência inválida volta ao padrão',coresDasPreferencias({paleta:'personalizada',cores:{principal:'azul'}}),PALETAS.verde.cores);
+t('preferência inválida volta ao padrão',coresDasPreferencias({paleta:'personalizada',cores:{principal:'azul'}}),PALETAS.roxo.cores);
 console.log(`${ok} passaram, ${falhas.length} falharam`); falhas.forEach(f=>console.log(' FALHA',f));
 if (falhas.length) process.exit(1);

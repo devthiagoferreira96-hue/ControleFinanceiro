@@ -39,7 +39,7 @@ export function htmlAparencia() {
     </fieldset>
 
     <div class="mt-4 grid gap-3 rounded-xl border border-stone-200 p-3 dark:border-stone-700" data-painel-cores ${atual === 'personalizada' ? '' : 'hidden'}>
-      <p class="text-sm text-stone-600 dark:text-stone-400">Toque no quadradinho para escolher a cor, ou digite o código (ex.: #1F6F54). A tela muda na hora.</p>
+      <p class="text-sm text-stone-600 dark:text-stone-400">Toque no quadradinho para escolher a cor, ou digite o código (ex.: #5B3FA8). A tela muda na hora.</p>
       ${PAPEIS.map(([k, rotulo, ajuda]) => `
         <div class="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2 sm:grid-cols-[auto_minmax(0,1fr)_7.5rem]" data-papel="${k}">
           <input type="color" id="cor-${k}" value="${cores[k].toLowerCase()}" class="size-11 cursor-pointer rounded-lg border border-stone-300 bg-transparent p-0.5 dark:border-stone-600" aria-describedby="ajuda-cor-${k}">

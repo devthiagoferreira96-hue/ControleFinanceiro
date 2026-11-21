@@ -6,23 +6,23 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 
-  --color-brand-50: #ecf7f1;
-  --color-brand-100: #d3ede0;
-  --color-brand-200: #a8dbc3;
-  --color-brand-300: #72c29f;
-  --color-brand-400: #43a57d;
-  --color-brand-500: #2a8a63;
-  --color-brand-600: #1f6f54;
-  --color-brand-700: #1a5944;
-  --color-brand-800: #164737;
-  --color-brand-900: #123a2e;
-  --color-brand-950: #0b241d;
+  --color-brand-50: #f6f6ff;
+  --color-brand-100: #ebe8ff;
+  --color-brand-200: #d8d3ff;
+  --color-brand-300: #c1b5ff;
+  --color-brand-400: #a691fc;
+  --color-brand-500: #7f69cf;
+  --color-brand-600: #5b3fa8;
+  --color-brand-700: #4a318d;
+  --color-brand-800: #3b1f7a;
+  --color-brand-900: #300d6b;
+  --color-brand-950: #1f004c;
 
   /* cores do tema (trocadas em Ajustes > Aparência, ver lib/temas.js) */
-  --color-fundo: #f6fbf7;
+  --color-fundo: #f7f5fc;
   --color-cartao: #ffffff;
-  --color-texto: #0e3b2e;
-  --color-destaque: #5fb88a;
+  --color-texto: #22184a;
+  --color-destaque: #8b6fd6;
   --color-entrada: #047857;
   --color-saida: #b91c1c;
 
